@@ -332,14 +332,15 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] Valores conferidos à mão em série pequena
-- [ ] Menos de 3 pontos devolve `"insuficiente"`
-- [ ] Gate check passes: `npx vitest run src/core`
-- [ ] Test count: >= 4 tests pass
+- [x] Valores conferidos à mão em série pequena
+- [x] Menos de 3 pontos devolve `"insuficiente"`
+- [x] Gate check passes: `npx vitest run src/core`
+- [x] Test count: >= 4 tests pass
 
 **Tests**: unit
 **Gate**: quick
 
+**Status**: ✅ Done
 ---
 
 ### T12: Fila com recuo
