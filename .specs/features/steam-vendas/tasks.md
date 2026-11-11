@@ -619,12 +619,13 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] `npm run build && npx web-ext lint` sem erros
-- [ ] Assinatura real fica para o usuário (precisa das chaves da AMO)
+- [x] `npm run build && npx web-ext lint` sem erros
+- [x] Assinatura real fica para o usuário (precisa das chaves da AMO)
 
 **Tests**: none
 **Gate**: build
 
+**Status**: ✅ Done
 ---
 
 ## Phase Execution Map

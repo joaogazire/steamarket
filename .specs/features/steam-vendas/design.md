@@ -138,8 +138,11 @@ interface Analise { tendenciaPct: number; volatilidade: number; spread: number }
 | Decisão | Escolha | Racional |
 | ------- | ------- | -------- |
 | Linguagem | TypeScript | Tipos para respostas da Steam |
-| Build | Vite + `web-ext` | Padrão para MV3 no Firefox |
+| Build | esbuild (IIFE) + `web-ext` | Content script precisa ser bundle clássico; o Rollup do Vite não gera IIFE com várias entradas |
 | Testes | Vitest, `fake-indexeddb`, jsdom | Núcleo sem DOM; UI com jsdom |
 | Gráfico | uPlot | Leve, bom para séries temporais |
 | Dinheiro | Inteiros em centavos | Evita erro de ponto flutuante |
+| Contexto da página | `window.wrappedJSObject` (`g_steamID`, `g_sessionID`, `g_rgWalletInfo`, `g_bViewingOwnProfile`) | Firefox; a verificar na página real |
+| Taxas | Porte do JS público da Steam, testado contra ele como oráculo | O percentual do jogo pode variar por item (a confirmar na captura) |
+| Inventário e venda | Passam pela fila do background | Respeita o ritmo único de requisições |
 | Manifest | MV3 com `background.scripts` (event page) | É o que o Firefox suporta; a conferir na Fase 0 |
