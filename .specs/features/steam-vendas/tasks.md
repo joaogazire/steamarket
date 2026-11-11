@@ -85,12 +85,13 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] `npm install` termina sem erro
-- [ ] Gate check passes: `npm run build` (após T2 e T3, aqui só `npm install`)
+- [x] `npm install` termina sem erro
+- [x] Gate check passes: `npm run build` (após T2 e T3, aqui só `npm install`)
 
 **Tests**: none
 **Gate**: build
 
+**Status**: ✅ Done
 ---
 
 ### T2: Configurar Vite e Vitest
