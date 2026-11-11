@@ -280,14 +280,15 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] Mediana conferida à mão numa fixture
-- [ ] Com menos de 50 unidades usa todas e devolve `amostra` real
-- [ ] Gate check passes: `npx vitest run src/core`
-- [ ] Test count: >= 5 tests pass
+- [x] Mediana conferida à mão numa fixture
+- [x] Com menos de 50 unidades usa todas e devolve `amostra` real
+- [x] Gate check passes: `npx vitest run src/core`
+- [x] Test count: >= 5 tests pass
 
 **Tests**: unit
 **Gate**: quick
 
+**Status**: ✅ Done
 ---
 
 ### T10: Sugestão por modo
