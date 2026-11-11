@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { REGRA_PADRAO } from "../core/tipos.ts";
 import { lerAppDoHash, lerContexto } from "./contexto.ts";
 
 describe("lerContexto", () => {
@@ -11,8 +12,19 @@ describe("lerContexto", () => {
   };
   it("lê steamid, sessão, moeda, país e posse do inventário", () => {
     expect(lerContexto(win)).toEqual({
-      steamid: "76561198000000000", sessionid: "abc123def456", moeda: 7, pais: "BR", proprio: true,
+      steamid: "76561198000000000", sessionid: "abc123def456", moeda: 7, pais: "BR", proprio: true, regra: REGRA_PADRAO,
     });
+  });
+  it("lê a regra de taxas da carteira (valores podem vir como texto)", () => {
+    const r = lerContexto({
+      ...win,
+      g_rgWalletInfo: { wallet_currency: 7, wallet_fee_percent: "0.05", wallet_publisher_fee_percent_default: "0.15", wallet_market_minimum: "1", wallet_currency_increment: "1" },
+    });
+    expect(r?.regra).toEqual({ taxaSteam: 0.05, taxaJogo: 0.15, minimo: 1, incremento: 1 });
+  });
+  it("regra inválida na carteira cai no padrão", () => {
+    const r = lerContexto({ ...win, g_rgWalletInfo: { wallet_currency: 7, wallet_fee_percent: "lixo", wallet_currency_increment: "0" } });
+    expect(r?.regra).toEqual(REGRA_PADRAO);
   });
   it("proprio é false em inventário alheio", () => {
     expect(lerContexto({ ...win, g_bViewingOwnProfile: 0 })?.proprio).toBe(false);

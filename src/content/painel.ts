@@ -1,7 +1,9 @@
 import type { ContextoPagina } from "./contexto.ts";
 
 export interface Painel {
+  /** o elemento hospedeiro no DOM da página; o conteúdo vive num shadow root fechado */
   el: HTMLElement;
+  raiz: ShadowRoot;
   conteudo: HTMLElement;
   trocarJogo(id: string): void;
   jogoAtual(): string | null;
@@ -16,8 +18,10 @@ export function montarPainel(doc: Document, ctx: ContextoPagina, enviar: (m: unk
   const existente = doc.querySelector("#sv-painel");
   if (existente) return montados.get(existente) ?? null;
 
+  // Shadow root fechado: o JS da página não alcança os botões nem os campos do painel.
   const el = doc.createElement("section");
   el.id = "sv-painel";
+  const raiz = el.attachShadow({ mode: "closed" });
   const titulo = doc.createElement("h2");
   titulo.textContent = "Steam Vendas";
   const aviso = doc.createElement("div");
@@ -25,7 +29,7 @@ export function montarPainel(doc: Document, ctx: ContextoPagina, enviar: (m: unk
   aviso.hidden = true;
   const conteudo = doc.createElement("div");
   conteudo.className = "sv-conteudo";
-  el.append(titulo, aviso, conteudo);
+  raiz.append(titulo, aviso, conteudo);
   const ancora = doc.querySelector("#inventories");
   if (ancora) ancora.before(el);
   else doc.body.prepend(el);
@@ -33,6 +37,7 @@ export function montarPainel(doc: Document, ctx: ContextoPagina, enviar: (m: unk
   let atual: string | null = null;
   const painel: Painel = {
     el,
+    raiz,
     conteudo,
     trocarJogo(id) {
       if (atual && atual !== id) enviar({ tipo: "cancelar", grupoId: atual });

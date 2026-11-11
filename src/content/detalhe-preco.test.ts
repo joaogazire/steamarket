@@ -54,3 +54,17 @@ describe("renderDetalhe PRC-01 / SUG / FEE-01", () => {
     expect(aoSelecionar).toHaveBeenCalledWith(250);
   });
 });
+
+describe("renderDetalhe: só cliques reais escolhem preço", () => {
+  it("com exigirCliqueReal, clique sintético nos botões não chama aoSelecionar", () => {
+    const el = document.createElement("div");
+    const aoSelecionar = vi.fn();
+    renderDetalhe(el, { dados, regra: REGRA_PADRAO, formatar: (c) => String(c), aoSelecionar, exigirCliqueReal: true });
+    (el.querySelector(".sv-sugestao button") as HTMLButtonElement).click();
+    const input = el.querySelector("input.sv-preco") as HTMLInputElement;
+    input.value = "3,00";
+    input.dispatchEvent(new Event("input"));
+    (el.querySelector("button.sv-usar") as HTMLButtonElement).click();
+    expect(aoSelecionar).not.toHaveBeenCalled();
+  });
+});

@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+import { REGRA_PADRAO } from "../core/tipos.ts";
 import { montarPainel } from "./painel.ts";
 
-const ctx = (proprio: boolean) => ({ steamid: "76561198000000000", sessionid: "abc", moeda: 7, pais: "BR", proprio });
+const ctx = (proprio: boolean) => ({ steamid: "76561198000000000", sessionid: "abc", moeda: 7, pais: "BR", proprio, regra: REGRA_PADRAO });
 
 describe("montarPainel INV-01 / edge", () => {
   it("em inventário alheio não monta nada", () => {
@@ -16,6 +17,13 @@ describe("montarPainel INV-01 / edge", () => {
     expect(a).not.toBeNull();
     expect(document.querySelectorAll("#sv-painel")).toHaveLength(1);
     expect(b).toBe(a);
+  });
+  it("o conteúdo fica num shadow root fechado, fora do alcance da página", () => {
+    document.body.innerHTML = '<div id="inventories"></div>';
+    montarPainel(document, ctx(true), vi.fn());
+    const host = document.querySelector("#sv-painel") as HTMLElement;
+    expect(host.shadowRoot).toBeNull(); // modo "closed" não expõe o shadowRoot
+    expect(host.querySelector("h2")).toBeNull();
   });
   it("trocar de jogo cancela as requisições do grupo anterior", () => {
     document.body.innerHTML = '<div id="inventories"></div>';

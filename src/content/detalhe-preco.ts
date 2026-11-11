@@ -10,6 +10,8 @@ export interface PropsDetalhe {
   formatar(centavos: number): string;
   /** chamado com o preço que o comprador paga, em centavos */
   aoSelecionar(precoComprador: number): void;
+  /** em produção, só cliques reais do usuário (isTrusted) escolhem preço */
+  exigirCliqueReal?: boolean;
 }
 
 const MODOS: { modo: Modo; rotulo: string }[] = [
@@ -47,7 +49,10 @@ export function renderDetalhe(el: HTMLElement, p: PropsDetalhe): void {
     const b = doc.createElement("button");
     b.textContent = "usar";
     b.disabled = s.preco === null;
-    b.addEventListener("click", () => s.preco !== null && p.aoSelecionar(s.preco));
+    b.addEventListener("click", (e) => {
+      if (p.exigirCliqueReal && !e.isTrusted) return;
+      if (s.preco !== null) p.aoSelecionar(s.preco);
+    });
     caixa.append(txt, b);
     el.append(caixa);
   }
@@ -69,7 +74,8 @@ export function renderDetalhe(el: HTMLElement, p: PropsDetalhe): void {
     usar.disabled = !ok;
     info.textContent = ok ? `recebe ${formatar(liquido(c, regra))}` : `mínimo ${formatar(minimo)}`;
   });
-  usar.addEventListener("click", () => {
+  usar.addEventListener("click", (e) => {
+    if (p.exigirCliqueReal && !e.isTrusted) return;
     const c = textoParaCentavos(input.value);
     if (c !== null && c >= minimo) p.aoSelecionar(c);
   });
