@@ -436,14 +436,15 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] Duas mensagens iguais seguidas geram 1 requisição (cache)
-- [ ] Sessão expirada vira mensagem "entre na Steam"
-- [ ] Gate check passes: `npx vitest run`
-- [ ] Test count: >= 4 tests pass
+- [x] Duas mensagens iguais seguidas geram 1 requisição (cache)
+- [x] Sessão expirada vira mensagem "entre na Steam"
+- [x] Gate check passes: `npx vitest run`
+- [x] Test count: >= 4 tests pass
 
 **Tests**: integration
 **Gate**: full
 
+**Status**: ✅ Done
 ---
 
 ### T16: Painel e montagem
