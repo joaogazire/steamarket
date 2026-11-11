@@ -488,14 +488,15 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] Grupos e contadores renderizados da fixture
-- [ ] Sem itens mostra "nenhum item vendável"
-- [ ] Gate check passes: `npx vitest run src/core src/content`
-- [ ] Test count: >= 4 tests pass
+- [x] Grupos e contadores renderizados da fixture
+- [x] Sem itens mostra "nenhum item vendável"
+- [x] Gate check passes: `npx vitest run src/core src/content`
+- [x] Test count: >= 4 tests pass
 
 **Tests**: unit
 **Gate**: quick
 
+**Status**: ✅ Done
 ---
 
 ### T18: Detalhe de preço e sugestão
