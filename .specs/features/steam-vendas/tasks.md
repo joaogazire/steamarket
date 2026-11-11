@@ -514,14 +514,15 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] Os 3 preços e as 3 sugestões aparecem
-- [ ] Preço abaixo do mínimo da Steam bloqueia o botão
-- [ ] Gate check passes: `npx vitest run src/core src/content`
-- [ ] Test count: >= 4 tests pass
+- [x] Os 3 preços e as 3 sugestões aparecem
+- [x] Preço abaixo do mínimo da Steam bloqueia o botão
+- [x] Gate check passes: `npx vitest run src/core src/content`
+- [x] Test count: >= 4 tests pass
 
 **Tests**: unit
 **Gate**: quick
 
+**Status**: ✅ Done
 ---
 
 ### T19: Gráfico
