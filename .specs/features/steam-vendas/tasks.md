@@ -228,14 +228,15 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] Tabela de 1 a 10000 centavos confere com as fixtures
-- [ ] `liquido(comprador(x))` não perde centavo no caso-limite documentado
-- [ ] Gate check passes: `npx vitest run src/core`
-- [ ] Test count: >= 6 tests pass
+- [x] Tabela de 1 a 10000 centavos confere com as fixtures
+- [x] `liquido(comprador(x))` não perde centavo no caso-limite documentado
+- [x] Gate check passes: `npx vitest run src/core`
+- [x] Test count: >= 6 tests pass
 
 **Tests**: unit
 **Gate**: quick
 
+**Status**: ✅ Done
 ---
 
 ### T8: Agrupamento
