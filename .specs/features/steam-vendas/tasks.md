@@ -94,10 +94,10 @@ T20 → T21 → T22
 **Status**: ✅ Done
 ---
 
-### T2: Configurar Vite e Vitest
+### T2: Configurar build (esbuild) e Vitest
 
-**What**: Build de content script e background para `dist/`, e Vitest com jsdom.
-**Where**: `vite.config.ts`
+**What**: Build de content script e background em bundles clássicos (IIFE) para `dist/`, e Vitest com jsdom. (Desvio do design: esbuild em vez de Vite, porque o Rollup do Vite não gera IIFE em build de várias entradas.)
+**Where**: `scripts/build.mjs`
 **Depends on**: T1
 **Reuses**: nada
 **Requirement**: PKG-01
@@ -228,7 +228,7 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [x] Tabela de 1 a 10000 centavos confere com as fixtures
+- [x] Tabela de 1 a 10000 centavos confere com o JS público da Steam (`fixtures/referencia/economy_common.taxas.js`), usado como oráculo
 - [x] `liquido(comprador(x))` não perde centavo no caso-limite documentado
 - [x] Gate check passes: `npx vitest run src/core`
 - [x] Test count: >= 6 tests pass
@@ -566,15 +566,16 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] Pausa mínima de 3 s entre vendas (relógio falso)
-- [ ] Recusa no item 2 de 3 não impede o 3
-- [ ] Cancelar interrompe antes do próximo envio
-- [ ] Gate check passes: `npx vitest run`
-- [ ] Test count: >= 5 tests pass
+- [x] Pausa mínima de 3 s entre vendas (relógio falso)
+- [x] Recusa no item 2 de 3 não impede o 3
+- [x] Cancelar interrompe antes do próximo envio
+- [x] Gate check passes: `npx vitest run`
+- [x] Test count: >= 5 tests pass
 
 **Tests**: integration
 **Gate**: full
 
+**Status**: ✅ Done
 ---
 
 ### T21: Interface do lote
