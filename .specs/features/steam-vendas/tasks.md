@@ -133,12 +133,13 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] `npx web-ext lint` sem erros
-- [ ] Permissões listam apenas `steamcommunity.com`
+- [x] `npx web-ext lint` sem erros
+- [x] Permissões listam apenas `steamcommunity.com`
 
 **Tests**: none
 **Gate**: build
 
+**Status**: ✅ Done
 ---
 
 ### T4: Script de captura de fixtures
