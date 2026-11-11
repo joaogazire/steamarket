@@ -384,13 +384,14 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] Entrada válida é devolvida sem nova busca; expirada, não
-- [ ] Gate check passes: `npx vitest run`
-- [ ] Test count: >= 3 tests pass
+- [x] Entrada válida é devolvida sem nova busca; expirada, não
+- [x] Gate check passes: `npx vitest run`
+- [x] Test count: >= 3 tests pass
 
 **Tests**: integration
 **Gate**: full
 
+**Status**: ✅ Done
 ---
 
 ### T14: Cliente Steam
