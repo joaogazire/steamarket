@@ -306,14 +306,15 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] Cada modo devolve o valor definido na spec
-- [ ] Sem histórico devolve o menor anúncio e `base: "sem histórico"`
-- [ ] Gate check passes: `npx vitest run src/core`
-- [ ] Test count: >= 5 tests pass
+- [x] Cada modo devolve o valor definido na spec
+- [x] Sem histórico devolve o menor anúncio e `base: "sem histórico"`
+- [x] Gate check passes: `npx vitest run src/core`
+- [x] Test count: >= 5 tests pass
 
 **Tests**: unit
 **Gate**: quick
 
+**Status**: ✅ Done
 ---
 
 ### T11: Análise do gráfico
