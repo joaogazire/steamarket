@@ -109,12 +109,13 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] `npx vitest run` roda (sem testes ainda, sai com 0 usando `--passWithNoTests`)
-- [ ] `npm run build` gera `dist/`
+- [x] `npx vitest run` roda (sem testes ainda, sai com 0 usando `--passWithNoTests`)
+- [x] `npm run build` gera `dist/`
 
 **Tests**: none
 **Gate**: build
 
+**Status**: ✅ Done
 ---
 
 ### T3: Criar manifest.json
