@@ -593,14 +593,15 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] Nada é enviado antes do clique de confirmação
-- [ ] Resumo mostra vendidos, recusados e o lembrete
-- [ ] Gate check passes: `npx vitest run src/core src/content`
-- [ ] Test count: >= 4 tests pass
+- [x] Nada é enviado antes do clique de confirmação
+- [x] Resumo mostra vendidos, recusados e o lembrete
+- [x] Gate check passes: `npx vitest run src/core src/content`
+- [x] Test count: >= 4 tests pass
 
 **Tests**: unit
 **Gate**: quick
 
+**Status**: ✅ Done
 ---
 
 ### T22: Script de assinatura
