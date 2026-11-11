@@ -1,0 +1,237 @@
+<title>Steam Vendas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: coluna única de leitura, resumo no topo, histórias em blocos recolhíveis por prioridade */
+:root{
+  --bg:#f5f5f3; --panel:#ffffff; --fg:#17191c; --muted:#5d636b; --line:#dcdcd7;
+  --accent:#1b6fa8; --p1:#1b6fa8; --p2:#9a6a00; --p3:#6b7280; --warn:#b4452d; --kw:#7a2e8f;
+  --font:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --head:"Space Grotesk","Inter",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1013; --panel:#161a1f; --fg:#e8e9ea; --muted:#9aa1a9; --line:#2a2f36;
+  --accent:#5aa9e0; --p1:#5aa9e0; --p2:#e0a93c; --p3:#9aa1a9; --warn:#e07a5f; --kw:#c79bdb; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1013; --panel:#161a1f; --fg:#e8e9ea; --muted:#9aa1a9; --line:#2a2f36;
+  --accent:#5aa9e0; --p1:#5aa9e0; --p2:#e0a93c; --p3:#9aa1a9; --warn:#e07a5f; --kw:#c79bdb; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.55 var(--font);
+  padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{font-family:var(--head);margin:0;text-wrap:balance;line-height:1.2}
+h1{font-size:34px;letter-spacing:-.02em}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:600}
+p{margin:0}
+.lead{color:var(--muted);max-width:65ch}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.tag{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--muted);background:var(--panel)}
+section{display:flex;flex-direction:column;gap:12px;min-width:0}
+.goals{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.goals li{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 14px}
+details{background:var(--panel);border:1px solid var(--line);border-radius:6px;min-width:0}
+summary{cursor:pointer;padding:12px 14px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+summary::before{content:"▸";color:var(--muted);font-size:12px}
+details[open] summary::before{content:"▾"}
+.pri{font:600 11px var(--head);letter-spacing:.08em;border-radius:4px;padding:1px 7px;border:1px solid currentColor}
+.p1{color:var(--p1)}.p2{color:var(--p2)}.p3{color:var(--p3)}
+.title{font-family:var(--head);font-weight:600;font-size:16px}
+.ids{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px}
+.story{color:var(--muted)}
+ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+.kw{color:var(--kw);font-weight:600}
+.test{font-size:13px;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
+.test b{color:var(--fg);font-weight:600}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:480px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.y{color:var(--p1)}.n{color:var(--warn)}
+ul.plain{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+footer{font-size:13px;color:var(--muted)}
+code{font:13px ui-monospace,monospace;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+</style>
+
+<main>
+  <header>
+    <h1>Steam Vendas</h1>
+    <p class="lead">Extensão Firefox que adiciona um painel na página do inventário Steam: agrupa itens iguais, mostra preços e histórico, sugere preço e vende em lote.</p>
+    <div class="tags"><span class="tag">Firefox MV3</span><span class="tag">Qualquer jogo da Steam</span><span class="tag">8 histórias · 30 requisitos</span><span class="tag">Fase: spec (sem código)</span></div>
+  </header>
+
+  <section>
+    <h2>Metas</h2>
+    <ul class="goals">
+      <li>Vender N unidades de um grupo com no máximo 3 cliques e um preço confirmado.</li>
+      <li>Mostrar última venda, menor anúncio e maior ordem de compra de cada grupo.</li>
+      <li>Sugerir preço em 3 modos a partir das ~50 últimas unidades vendidas.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Histórias</h2>
+
+    <details open>
+      <summary><span class="pri p1">P1</span><span class="title">Inventário agrupado</span><span class="ids">INV-01 a 04</span></summary>
+      <div class="body">
+        <p class="story">Como vendedor, quero itens iguais agrupados para ver o inventário em poucas linhas.</p>
+        <ol>
+          <li><span class="kw">QUANDO</span> o inventário carrega, o sistema agrupa itens vendáveis por <code>market_hash_name</code> e exibe o contador de cada grupo.</li>
+          <li><span class="kw">ONDE</span> há mais de uma página, carrega todas antes de exibir os totais.</li>
+          <li><span class="kw">SE</span> o item não é vendável, exclui dos grupos.</li>
+          <li><span class="kw">SE</span> o carregamento falha, mostra o erro e o botão "tentar de novo".</li>
+        </ol>
+        <p class="test"><b>Teste:</b> abrir um jogo com itens repetidos e conferir os contadores.</p>
+      </div>
+    </details>
+
+    <details open>
+      <summary><span class="pri p1">P1</span><span class="title">Preços por grupo</span><span class="ids">PRC-01 a 04</span></summary>
+      <div class="body">
+        <p class="story">Como vendedor, quero ver os preços de cada grupo para saber quanto vale.</p>
+        <ol>
+          <li><span class="kw">QUANDO</span> expande um grupo, mostra última venda, menor anúncio e maior ordem de compra.</li>
+          <li><span class="kw">ENQUANTO</span> o cache é válido, reutiliza o preço sem nova requisição.</li>
+          <li><span class="kw">SE</span> a Steam responde 429, pausa a fila com recuo exponencial e avisa "aguardando limite da Steam".</li>
+          <li>Sempre: no máximo 1 requisição por vez.</li>
+        </ol>
+        <p class="test"><b>Teste:</b> expandir 3 grupos seguidos e ver 3 preços sem erro 429.</p>
+      </div>
+    </details>
+
+    <details open>
+      <summary><span class="pri p1">P1</span><span class="title">Sugestão de preço</span><span class="ids">SUG-01 a 06</span></summary>
+      <div class="body">
+        <p class="story">Como vendedor, quero um preço sugerido para vender perto do valor de mercado.</p>
+        <ol>
+          <li><span class="kw">QUANDO</span> o histórico carrega, calcula a mediana ponderada pelo volume das horas mais recentes até somar 50 unidades.</li>
+          <li><span class="kw">SE</span> soma menos de 50, usa todas e mostra "N vendas".</li>
+          <li>Modo <b>rápido</b>: maior ordem de compra.</li>
+          <li>Modo <b>equilibrado</b>: a mediana calculada.</li>
+          <li>Modo <b>paciente</b>: o maior entre a mediana e o menor anúncio atual.</li>
+          <li><span class="kw">SE</span> não há histórico, sugere o menor anúncio e indica "sem histórico".</li>
+        </ol>
+        <p class="test"><b>Teste:</b> teste unitário com fixture real, mediana conferida à mão.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary><span class="pri p1">P1</span><span class="title">Cálculo de taxas</span><span class="ids">FEE-01 a 03</span></summary>
+      <div class="body">
+        <p class="story">Como vendedor, quero ver quanto recebo para decidir o preço.</p>
+        <ol>
+          <li><span class="kw">QUANDO</span> informa o preço do comprador, mostra o líquido igual ao da tela de venda da Steam.</li>
+          <li><span class="kw">QUANDO</span> informa o líquido desejado, mostra o preço do comprador.</li>
+          <li>Sempre: envia à Steam o líquido em centavos inteiros.</li>
+        </ol>
+        <p class="test"><b>Teste:</b> tabela de 1 a 10000 centavos comparada com as fixtures.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary><span class="pri p1">P1</span><span class="title">Validar endpoints (Fase 0)</span><span class="ids">FIX-01 a 03</span></summary>
+      <div class="body">
+        <p class="story">Como dono, quero respostas reais da Steam salvas como fixtures para testar o núcleo com dados verdadeiros.</p>
+        <ol>
+          <li><span class="kw">QUANDO</span> o script roda logado, salva em <code>fixtures/</code> inventário, pricehistory, priceoverview e ordens de ao menos 3 itens.</li>
+          <li>Sempre: registra em <code>fixtures/NOTAS.md</code> o limite observado e o formato do preço de venda.</li>
+          <li><span class="kw">SE</span> a sessão não está logada, aborta com "sessão Steam ausente".</li>
+        </ol>
+        <p class="test"><b>Teste:</b> rodar o script e ver os arquivos em <code>fixtures/</code>.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary><span class="pri p2">P2</span><span class="title">Gráfico e análise</span><span class="ids">CHT-01 a 03</span></summary>
+      <div class="body">
+        <p class="story">Como vendedor, quero gráfico e métricas para escolher o momento de vender.</p>
+        <ol>
+          <li><span class="kw">QUANDO</span> abre um grupo, desenha preço e volume em 7, 30 ou 90 dias.</li>
+          <li>Mostra tendência (variação % entre o primeiro e o último terço), volatilidade (desvio padrão / mediana) e diferença entre menor anúncio e maior ordem de compra.</li>
+          <li><span class="kw">SE</span> há menos de 3 pontos, mostra "dados insuficientes".</li>
+        </ol>
+        <p class="test"><b>Teste:</b> abrir um item com histórico longo e alternar 7/30/90.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary><span class="pri p2">P2</span><span class="title">Venda em lote</span><span class="ids">SEL-01 a 06</span></summary>
+      <div class="body">
+        <p class="story">Como vendedor, quero vender várias unidades de um grupo sem repetir o processo item a item.</p>
+        <ol>
+          <li><span class="kw">QUANDO</span> escolhe quantidade e preço e confirma, envia uma venda por vez, com pausa mínima de 3 s.</li>
+          <li><span class="kw">ENQUANTO</span> a fila roda, mostra "k de N" e permite cancelar.</li>
+          <li><span class="kw">SE</span> uma venda é recusada, registra o motivo, pula e segue.</li>
+          <li><span class="kw">SE</span> a Steam responde 429, pausa e retoma com recuo exponencial.</li>
+          <li>Só inicia após clique de confirmação do usuário naquele lote.</li>
+          <li><span class="kw">QUANDO</span> termina, mostra vendidos, recusados e o lembrete de confirmar no celular.</li>
+        </ol>
+        <p class="test"><b>Teste:</b> vender 3 unidades baratas e ver 3 pendentes de confirmação na Steam.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary><span class="pri p3">P3</span><span class="title">Instalação permanente</span><span class="ids">PKG-01</span></summary>
+      <div class="body">
+        <p class="story">Como dono, quero a extensão assinada para que ela persista no Firefox.</p>
+        <ol><li><span class="kw">QUANDO</span> <code>web-ext sign</code> roda, gera um <code>.xpi</code> instalável.</li></ol>
+        <p class="test"><b>Teste:</b> instalar o <code>.xpi</code> e reiniciar o Firefox.</p>
+      </div>
+    </details>
+  </section>
+
+  <section>
+    <h2>Casos de borda</h2>
+    <ul class="plain">
+      <li>Jogo sem itens vendáveis: mostra "nenhum item vendável".</li>
+      <li>Preço abaixo do mínimo da Steam: bloqueia o envio e explica.</li>
+      <li>Troca de jogo: cancela requisições pendentes do anterior.</li>
+      <li>Fora do próprio inventário: oculta os controles de venda.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Fora de escopo</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Item</th><th>Motivo</th></tr></thead>
+      <tbody>
+        <tr><td>Extras de CS2 (float, adesivos, chaveiros)</td><td>Fase posterior; itens únicos ficam fora de grupo e lote</td></tr>
+        <tr><td>Repricing automático / venda sem clique</td><td>Risco de violar regras da Steam</td></tr>
+        <tr><td>Confirmação no celular</td><td>Steam Guard; a extensão não contorna</td></tr>
+        <tr><td>Chrome e outros navegadores</td><td>Só Firefox</td></tr>
+        <tr><td>Compra de itens</td><td>Fora do objetivo</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Premissas</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Decisão</th><th>Padrão</th><th>Confirmada</th></tr></thead>
+      <tbody>
+        <tr><td>Jogos</td><td>Qualquer jogo da Steam</td><td class="y">sim</td></tr>
+        <tr><td>UI</td><td>Painel na página do inventário</td><td class="y">sim</td></tr>
+        <tr><td>"Últimas 50 vendas"</td><td>Somar unidades das horas mais recentes até 50; mediana ponderada</td><td class="y">sim</td></tr>
+        <tr><td>Menos de 50 no histórico</td><td>Usa todas e mostra a contagem</td><td class="y">sim</td></tr>
+        <tr><td>Moeda</td><td>A da conta logada</td><td class="n">não</td></tr>
+        <tr><td>Cache</td><td>Histórico 1 h, preço 5 min (IndexedDB)</td><td class="n">não</td></tr>
+        <tr><td>Ritmo da fila</td><td>1 por vez, pausa de 3 s, recuo em 429</td><td class="n">não</td></tr>
+        <tr><td>Taxas</td><td>5% Steam + 10% do jogo, arredondamento validado na Fase 0</td><td class="n">não</td></tr>
+        <tr><td>Distribuição</td><td><code>web-ext sign</code> não listada</td><td class="n">não</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Critérios de sucesso</h2>
+    <ul class="plain">
+      <li>Vender 20 unidades de um item em menos de 3 minutos de interação.</li>
+      <li>Zero erros 429 não tratados em 100 requisições.</li>
+      <li>Líquido igual ao da Steam em 100% dos casos das fixtures.</li>
+    </ul>
+  </section>
+
+  <footer>Versão web simplificada de <code>.specs/features/steam-vendas/spec.md</code>. Aprovação pendente.</footer>
+</main>
