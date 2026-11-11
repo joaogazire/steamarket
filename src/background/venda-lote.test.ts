@@ -183,3 +183,14 @@ describe("validarPedidoLote (mensagem vinda do painel)", () => {
     expect(validarPedidoLote(null)).toBeNull();
   });
 });
+
+describe("iniciarLote: cancelar limpa a fila do lote (SEL-02)", () => {
+  it("cancelar() pede à fila que descarte as vendas pendentes do mesmo loteId", async () => {
+    const fila = criarFila({ ...relogio(), pausaMs: 3000 });
+    const espia = vi.spyOn(fila, "cancelar");
+    const lote = iniciarLote({ fila, vender: async () => ok }, ativos, 1000, "lote-x");
+    lote.cancelar();
+    await lote.concluido;
+    expect(espia).toHaveBeenCalledWith("lote-x");
+  });
+});

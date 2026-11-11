@@ -45,3 +45,14 @@ describe("renderGrafico CHT-01 / CHT-02 / CHT-03", () => {
     expect(criar).not.toHaveBeenCalled();
   });
 });
+
+describe("renderGrafico: valores exibidos (CHT-02)", () => {
+  it("mostra tendência, volatilidade e spread formatados", () => {
+    const el = document.createElement("div");
+    const serie: Ponto[] = [100, 100, 100, 200, 200, 200].map((preco, i) => ({ t: AGORA - (6 - i) * DIA + 1, preco, volume: 1 }));
+    renderGrafico(el, { pontos: serie, ordens: { menorAnuncio: 210, maiorOrdem: 190 }, agora: AGORA, criarPlot: () => ({ destroy: vi.fn() }) });
+    expect(el.textContent).toContain("Tendência +100.0%");
+    expect(el.textContent).toContain("Volatilidade 33.3%");
+    expect(el.textContent).toContain("Spread 0.20");
+  });
+});

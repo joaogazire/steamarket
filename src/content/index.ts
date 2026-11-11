@@ -11,6 +11,7 @@ import { renderLista } from "./lista-grupos.ts";
 import { renderLote } from "./lote.ts";
 import type { Lote, ResumoLote } from "../background/venda-lote.ts";
 import { montarPainel } from "./painel.ts";
+import { tratarPorta } from "./porta.ts";
 
 /** A formatação de preços é em reais; outras moedas não vendem até serem suportadas (BRL = 7 na Steam). */
 const MOEDA_SUPORTADA = 7;
@@ -48,16 +49,9 @@ async function principal(): Promise<void> {
 
   const progressos = new Map<string, (k: number, n: number) => void>();
   const porta = browser.runtime.connect({ name: "painel" });
-  porta.onMessage.addListener((m) => {
-    const msg = m as { tipo?: string; ms?: number; loteId?: string; k?: number; n?: number };
-    if (msg.tipo === "progresso" && typeof msg.loteId === "string" && typeof msg.k === "number" && typeof msg.n === "number") {
-      progressos.get(msg.loteId)?.(msg.k, msg.n);
-    }
-    if (msg.tipo === "pausa" && typeof msg.ms === "number") {
-      painel.avisar(`aguardando limite da Steam (${Math.round(msg.ms / 1000)} s)`);
-      setTimeout(() => painel.avisar(null), msg.ms);
-    }
-  });
+  porta.onMessage.addListener((m) =>
+    tratarPorta(m, { avisar: (t) => painel.avisar(t), progresso: (id, k, n) => progressos.get(id)?.(k, n) }),
+  );
 
   const formatar = (c: number) => `R$ ${(c / 100).toFixed(2).replace(".", ",")}`;
   const detalhe = document.createElement("div");
