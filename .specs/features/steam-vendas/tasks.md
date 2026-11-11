@@ -254,14 +254,15 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] Contadores corretos em fixture com itens repetidos
-- [ ] Item não vendável fica de fora
-- [ ] Gate check passes: `npx vitest run src/core`
-- [ ] Test count: >= 4 tests pass
+- [x] Contadores corretos em fixture com itens repetidos
+- [x] Item não vendável fica de fora
+- [x] Gate check passes: `npx vitest run src/core`
+- [x] Test count: >= 4 tests pass
 
 **Tests**: unit
 **Gate**: quick
 
+**Status**: ✅ Done
 ---
 
 ### T9: Histórico e mediana das ~50 últimas
