@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `.specs/features/steam-vendas/design.md`
-**Status**: Draft
+**Status**: In Progress (21 de 22; T5 depende do usuário)
 
 ---
 
