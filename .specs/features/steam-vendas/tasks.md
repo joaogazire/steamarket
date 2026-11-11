@@ -409,15 +409,16 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] Inventário com várias páginas é concatenado
-- [ ] Resposta fora do formato lança erro tipado
-- [ ] Falha de rede devolve erro que a UI mostra com "tentar de novo"
-- [ ] Gate check passes: `npx vitest run`
-- [ ] Test count: >= 6 tests pass
+- [x] Inventário com várias páginas é concatenado
+- [x] Resposta fora do formato lança erro tipado
+- [x] Falha de rede devolve erro que a UI mostra com "tentar de novo"
+- [x] Gate check passes: `npx vitest run`
+- [x] Test count: >= 6 tests pass
 
 **Tests**: integration
 **Gate**: full
 
+**Status**: ✅ Done
 ---
 
 ### T15: Roteador do background
