@@ -1,0 +1,11 @@
+#sv-painel { background: #1b2838; color: #c6d4df; padding: 12px 16px; margin: 0 0 12px; border-radius: 3px; font-size: 13px; }
+#sv-painel h2 { margin: 0 0 8px; font-size: 15px; color: #fff; }
+#sv-painel button { cursor: pointer; margin-left: 6px; }
+#sv-painel .sv-aviso { background: #5c4a00; color: #ffe082; padding: 4px 8px; margin-bottom: 8px; }
+#sv-painel .sv-grupo { display: flex; justify-content: space-between; gap: 12px; padding: 6px 4px; border-bottom: 1px solid #2a475e; cursor: pointer; }
+#sv-painel .sv-grupo:hover, #sv-painel .sv-grupo:focus-visible { background: #2a475e; outline: none; }
+#sv-painel .sv-contagem { color: #8fbc8f; font-variant-numeric: tabular-nums; }
+#sv-painel .sv-linha, #sv-painel .sv-sugestao, #sv-painel .sv-manual { padding: 3px 0; }
+#sv-painel .sv-plot { width: 100%; min-height: 220px; }
+#sv-painel .sv-janelas button[aria-pressed="true"] { font-weight: bold; }
+#sv-painel .sv-detalhe { margin: 8px 0 12px 12px; }

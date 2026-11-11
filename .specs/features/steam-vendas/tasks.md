@@ -540,14 +540,15 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] Trocar a janela redesenha com o recorte certo
-- [ ] Poucos pontos mostram "dados insuficientes"
-- [ ] Gate check passes: `npx vitest run src/core src/content`
-- [ ] Test count: >= 3 tests pass
+- [x] Trocar a janela redesenha com o recorte certo
+- [x] Poucos pontos mostram "dados insuficientes"
+- [x] Gate check passes: `npx vitest run src/core src/content`
+- [x] Test count: >= 3 tests pass
 
 **Tests**: unit
 **Gate**: quick
 
+**Status**: ✅ Done
 ---
 
 ### T20: Orquestração do lote

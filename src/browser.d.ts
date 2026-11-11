@@ -13,3 +13,8 @@ declare const browser: {
     connect(info?: { name?: string }): PortaExt;
   };
 };
+
+declare module "*.css" {
+  const conteudo: string;
+  export default conteudo;
+}
