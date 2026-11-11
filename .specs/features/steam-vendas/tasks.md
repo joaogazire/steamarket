@@ -157,13 +157,14 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] Teste unitário da função `temSessao(cookies)` (com e sem cookie `steamLoginSecure`) passa
-- [ ] Gate check passes: `npx vitest run src/core scripts`
-- [ ] Test count: 2 tests pass
+- [x] Teste unitário da função `temSessao(cookies)` (com e sem cookie `steamLoginSecure`) passa
+- [x] Gate check passes: `npx vitest run src/core scripts`
+- [x] Test count: 2 tests pass
 
 **Tests**: unit
 **Gate**: quick
 
+**Status**: ✅ Done
 ---
 
 ### T5: Rodar a captura e escrever NOTAS.md (manual)
