@@ -358,14 +358,15 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] Com relógio falso: nunca 2 tarefas ao mesmo tempo
-- [ ] 429 repetido dobra a espera até 60 s
-- [ ] Gate check passes: `npx vitest run`
-- [ ] Test count: >= 5 tests pass
+- [x] Com relógio falso: nunca 2 tarefas ao mesmo tempo
+- [x] 429 repetido dobra a espera até 60 s
+- [x] Gate check passes: `npx vitest run`
+- [x] Test count: >= 5 tests pass
 
 **Tests**: integration
 **Gate**: full
 
+**Status**: ✅ Done
 ---
 
 ### T13: Cache com validade
