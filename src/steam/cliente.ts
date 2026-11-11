@@ -194,6 +194,7 @@ export async function vender(f: typeof fetch, ctx: ContextoVenda, ativo: Ativo, 
   const r = await chamar(f, `${BASE}/market/sellitem/`, {
     method: "POST",
     redirect: "error",
+    signal: AbortSignal.timeout(30_000),
     body: corpo.toString(),
     headers: {
       "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",

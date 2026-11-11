@@ -99,6 +99,12 @@ describe("vender", () => {
     });
     expect((init.headers as Record<string, string>).Referer).toBe("https://steamcommunity.com/profiles/76561198000000000/inventory");
   });
+  it("a venda tem tempo limite (AbortSignal), para um lote nunca ficar pendurado", async () => {
+    const f = fetcher(resp({ success: true }));
+    await vender(f, ctx, ativo, 500);
+    const init = f.mock.calls[0]![1] as RequestInit;
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
   it("recusa devolve o motivo da Steam", async () => {
     const r = await vender(fetcher(resp({ success: false, message: "Você já tem um anúncio" })), ctx, ativo, 500);
     expect(r).toEqual({ ok: false, motivo: "Você já tem um anúncio" });
