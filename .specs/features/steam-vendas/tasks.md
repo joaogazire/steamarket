@@ -205,11 +205,12 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] `npx tsc --noEmit` sem erros
+- [x] `npx tsc --noEmit` sem erros
 
 **Tests**: none
 **Gate**: build
 
+**Status**: ✅ Done
 ---
 
 ### T7: Cálculo de taxas
