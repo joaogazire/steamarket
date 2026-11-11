@@ -462,14 +462,15 @@ T20 → T21 → T22
 
 **Done when**:
 
-- [ ] Em inventário alheio não aparecem controles de venda
-- [ ] Troca de jogo cancela requisições do anterior
-- [ ] Gate check passes: `npx vitest run src/core src/content`
-- [ ] Test count: >= 3 tests pass
+- [x] Em inventário alheio não aparecem controles de venda
+- [x] Troca de jogo cancela requisições do anterior
+- [x] Gate check passes: `npx vitest run src/core src/content`
+- [x] Test count: >= 3 tests pass
 
 **Tests**: unit
 **Gate**: quick
 
+**Status**: ✅ Done
 ---
 
 ### T17: Lista de grupos
