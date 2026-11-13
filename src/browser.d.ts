@@ -13,6 +13,17 @@ declare const browser: {
     sendMessage(m: unknown): Promise<unknown>;
     connect(info?: { name?: string }): PortaExt;
   };
+  storage: {
+    local: {
+      get(chave: string | string[]): Promise<Record<string, unknown>>;
+      set(itens: Record<string, unknown>): Promise<void>;
+      remove(chave: string | string[]): Promise<void>;
+    };
+    onChanged: {
+      addListener(f: (mudancas: Record<string, { oldValue?: unknown; newValue?: unknown }>, area: string) => void): void;
+    };
+  };
+  i18n: { getUILanguage(): string };
 };
 
 declare module "*.css" {

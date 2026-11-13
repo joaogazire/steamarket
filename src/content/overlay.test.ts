@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { aplicarPrecos, idDoQuadrado, idsVisiveis, marcarListados, ordenarListados } from "./overlay.ts";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { definirIdioma } from "../core/i18n.ts";
+import { acaoDoBotao, aplicarPrecos, idDoQuadrado, idsVisiveis, marcarGrupos, marcarListados, ordenarGrade, ordenarListados, type AcaoQuadrado } from "./overlay.ts";
 
 function grade(...ids: string[]): void {
   document.body.innerHTML = `<div id="inventories">${ids.map((i) => `<div class="itemHolder"><div class="item" id="${i}"></div></div>`).join("")}</div>`;
@@ -106,6 +107,60 @@ describe("marcarListados / ocultar", () => {
   });
 });
 
+describe("botões de ação no quadrado (Listar)", () => {
+  const botoes = (id: string) => [...(document.getElementById(id)?.querySelectorAll<HTMLButtonElement>(".sv-acao") ?? [])];
+  const listar = (id: string): Map<string, AcaoQuadrado[]> =>
+    new Map([[id, [{ acao: "listar", rotulo: "Listar", aria: "Listar no mercado por R$ 0,17" }]]]);
+  it("aparecem só nos quadrados com ações, com rótulo acessível", () => {
+    grade("730_2_111", "730_2_222");
+    aplicarPrecos(document, new Map([["730_2_111", "R$ 0,17"], ["730_2_222", "R$ 0,30"]]), listar("730_2_111"));
+    const [b] = botoes("730_2_111");
+    expect(b?.textContent).toBe("Listar");
+    expect(b?.getAttribute("aria-label")).toBe("Listar no mercado por R$ 0,17");
+    expect(b?.type).toBe("button");
+    expect(b?.dataset.svAcao).toBe("listar");
+    expect(botoes("730_2_222")).toHaveLength(0);
+  });
+  it("some quando a ação sai da lista e não duplica", () => {
+    grade("730_2_111");
+    aplicarPrecos(document, new Map([["730_2_111", "R$ 0,17"]]), listar("730_2_111"));
+    aplicarPrecos(document, new Map([["730_2_111", "R$ 0,17"]]), listar("730_2_111"));
+    expect(document.querySelectorAll(".sv-acao")).toHaveLength(1);
+    aplicarPrecos(document, new Map([["730_2_111", "listando…"]]), new Map());
+    expect(botoes("730_2_111")).toHaveLength(0);
+  });
+  it("ação ocupada fica desabilitada", () => {
+    grade("730_2_111");
+    aplicarPrecos(document, new Map([["730_2_111", "R$ 0,17"]]), new Map([["730_2_111", [{ acao: "listar", rotulo: "…", aria: "listando", ocupado: true }]]]));
+    expect(botoes("730_2_111")[0]!.disabled).toBe(true);
+  });
+  it("quadrado listado não ganha botão", () => {
+    grade("730_2_111");
+    marcarListados(document, new Map([["730_2_111", 100]]), (c) => String(c), false);
+    aplicarPrecos(document, new Map([["730_2_111", "R$ 0,17"]]), listar("730_2_111"));
+    expect(botoes("730_2_111")).toHaveLength(0);
+  });
+  it("acaoDoBotao diz qual ação e qual quadrado; clique fora de botão dá null", () => {
+    grade("730_2_111");
+    aplicarPrecos(document, new Map([["730_2_111", "R$ 0,17"]]), listar("730_2_111"));
+    expect(acaoDoBotao(botoes("730_2_111")[0]!)).toEqual({ id: "730_2_111", acao: "listar" });
+    expect(acaoDoBotao(document.getElementById("730_2_111"))).toBeNull();
+    expect(acaoDoBotao(null)).toBeNull();
+  });
+});
+
+describe("listados aguardando aprovação no celular (pedido 13/11)", () => {
+  it("mostram 'Falta aprovar' em vez do preço anunciado", () => {
+    grade("730_2_111", "730_2_222");
+    marcarListados(document, new Map([["730_2_111", 18], ["730_2_222", 30]]), (c) => `R$ ${c}`, false, new Set(["730_2_111"]));
+    const marca = (id: string) => document.getElementById(id)!.querySelector(".sv-preco-item")!;
+    expect(marca("730_2_111").textContent).toBe("Falta aprovar");
+    expect(marca("730_2_111").classList.contains("sv-pendente")).toBe(true);
+    expect(marca("730_2_222").textContent).toBe("Listado R$ 30");
+    expect(marca("730_2_222").classList.contains("sv-pendente")).toBe(false);
+  });
+});
+
 describe("idDoQuadrado", () => {
   it("acha o id do quadrado a partir de um filho clicado", () => {
     grade("730_2_111");
@@ -135,6 +190,12 @@ describe("idsVisiveis (quadrados da página da grade que está na tela)", () => 
 });
 
 describe("ordenarListados (listados vão para as últimas páginas)", () => {
+  it("devolve se mudou a ordem (para recarregar as imagens só quando precisa)", () => {
+    document.body.innerHTML = `<div id="inventories"><div class="inventory_page"><div class="itemHolder"><div class="item" id="730_2_1"></div></div><div class="itemHolder"><div class="item" id="730_2_2"></div></div></div></div>`;
+    expect(ordenarListados(document, (id) => id === "730_2_1", true)).toBe(true);
+    expect(ordenarListados(document, (id) => id === "730_2_1", true)).toBe(false);
+    expect(ordenarListados(document, (id) => id === "730_2_1", false)).toBe(true);
+  });
   function paginas(...paginas: string[][]): void {
     document.body.innerHTML = `<div id="inventories"><div class="inv">${paginas
       .map((ids) => `<div class="inventory_page">${ids.map((i) => `<div class="itemHolder"><div class="item" id="${i}"></div></div>`).join("")}</div>`)
@@ -164,5 +225,99 @@ describe("ordenarListados (listados vão para as últimas páginas)", () => {
     obs.observe(document.body, { childList: true, subtree: true, attributes: true });
     ordenarListados(document, (id) => id === "730_2_2", true);
     expect(obs.takeRecords()).toHaveLength(0);
+  });
+});
+
+describe("ordenarGrade (ordem por preço, listados no fim)", () => {
+  const paginas = (...ps: string[][]) => {
+    document.body.innerHTML = `<div id="inventories">${ps
+      .map((ids) => `<div class="inventory_page">${ids.map((i) => (i ? `<div class="itemHolder"><div class="item" id="${i}"></div></div>` : '<div class="itemHolder disabled"></div>')).join("")}</div>`)
+      .join("")}</div>`;
+  };
+  const ordem = () => [...document.querySelectorAll("#inventories .inventory_page")].map((p) => [...p.querySelectorAll(".item")].map((e) => e.id.split("_")[2]));
+  it("ordena pela chave em todas as páginas, mantendo o tamanho de cada página e as casas vazias no fim", () => {
+    paginas(["730_2_1", "730_2_2"], ["730_2_3", ""]);
+    const preco: Record<string, number> = { "730_2_1": 10, "730_2_2": 30, "730_2_3": 20 };
+    expect(ordenarGrade(document, (id) => [-(preco[id] ?? 0)])).toBe(true);
+    expect(ordem()).toEqual([["2", "3"], ["1"]]);
+  });
+  it("empate fica na ordem original; chave vazia volta à ordem da Steam", () => {
+    paginas(["730_2_1", "730_2_2", "730_2_3"]);
+    ordenarGrade(document, (id) => [id === "730_2_3" ? 0 : 1]);
+    expect(ordem()).toEqual([["3", "1", "2"]]);
+    ordenarGrade(document, () => []);
+    expect(ordem()).toEqual([["1", "2", "3"]]);
+  });
+});
+
+describe("marcarGrupos (agrupar itens iguais)", () => {
+  const holder = (id: string) => document.getElementById(id)!.closest(".itemHolder")!;
+  it("mostra a quantidade no representante e esconde as cópias", () => {
+    grade("730_2_1", "730_2_2", "730_2_3");
+    marcarGrupos(document, new Map([["730_2_1", 3]]), new Set(["730_2_2", "730_2_3"]));
+    expect(document.getElementById("730_2_1")!.querySelector(".sv-qtd")?.textContent).toBe("x3");
+    expect(holder("730_2_2").classList.contains("sv-agrupado")).toBe(true);
+    expect(holder("730_2_1").classList.contains("sv-agrupado")).toBe(false);
+  });
+  it("desligar tira as marcas e mostra tudo de novo", () => {
+    grade("730_2_1", "730_2_2");
+    marcarGrupos(document, new Map([["730_2_1", 2]]), new Set(["730_2_2"]));
+    marcarGrupos(document, new Map(), new Set());
+    expect(document.querySelector(".sv-qtd")).toBeNull();
+    expect(document.querySelector(".sv-agrupado")).toBeNull();
+  });
+  it("quantidade 1 não ganha marca; repetir sem mudança não mexe no DOM", () => {
+    grade("730_2_1", "730_2_2");
+    marcarGrupos(document, new Map([["730_2_1", 1]]), new Set());
+    expect(document.querySelector(".sv-qtd")).toBeNull();
+    marcarGrupos(document, new Map([["730_2_1", 2]]), new Set(["730_2_2"]));
+    const obs = new MutationObserver(() => undefined);
+    obs.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true });
+    marcarGrupos(document, new Map([["730_2_1", 2]]), new Set(["730_2_2"]));
+    expect(obs.takeRecords()).toHaveLength(0);
+    obs.disconnect();
+  });
+  it("idsVisiveis ignora as cópias escondidas", () => {
+    document.body.innerHTML = '<div id="inventories"><div class="inventory_ctn"><div class="inventory_page"><div class="itemHolder"><div class="item" id="730_2_1"></div></div><div class="itemHolder"><div class="item" id="730_2_2"></div></div></div></div></div>';
+    marcarGrupos(document, new Map([["730_2_1", 2]]), new Set(["730_2_2"]));
+    expect(idsVisiveis(document)).toEqual(["730_2_1"]);
+  });
+});
+
+describe("seleção e marcas estáticas (pedido 13/11)", () => {
+  it("'Falta aprovar' não herda a pulsação do 'listando…'", () => {
+    grade("730_2_111");
+    aplicarPrecos(document, new Map([["730_2_111", "listando…"]]));
+    const marca = document.getElementById("730_2_111")!.querySelector(".sv-preco-item")!;
+    expect(marca.classList.contains("sv-ocupado")).toBe(true);
+    marcarListados(document, new Map([["730_2_111", 18]]), (c) => String(c), false, new Set(["730_2_111"]));
+    expect(marca.textContent).toBe("Falta aprovar");
+    expect(marca.classList.contains("sv-ocupado")).toBe(false);
+  });
+  it("botão de seleção mostra se está marcado (aria-pressed) e o clique é reconhecido", () => {
+    grade("730_2_111");
+    aplicarPrecos(document, new Map([["730_2_111", "R$ 0,18"]]), new Map([["730_2_111", [
+      { acao: "selecionar", rotulo: "", aria: "Selecionar para listar", marcado: true },
+      { acao: "listar", rotulo: "Listar", aria: "Listar" },
+    ]]]));
+    const sel = document.querySelector<HTMLButtonElement>(".sv-acao-selecionar")!;
+    expect(sel.getAttribute("aria-pressed")).toBe("true");
+    expect(acaoDoBotao(sel)).toEqual({ id: "730_2_111", acao: "selecionar" });
+    aplicarPrecos(document, new Map([["730_2_111", "R$ 0,18"]]), new Map([["730_2_111", [
+      { acao: "selecionar", rotulo: "", aria: "Selecionar para listar", marcado: false },
+    ]]]));
+    expect(sel.getAttribute("aria-pressed")).toBe("false");
+  });
+});
+
+
+describe("marcarListados em outro idioma", () => {
+  afterEach(() => definirIdioma("pt"));
+  it("Falta aprovar e Listado seguem o idioma", () => {
+    document.body.innerHTML = '<div id="inventories"><div class="itemHolder"><div class="item" id="730_2_1"></div></div><div class="itemHolder"><div class="item" id="730_2_2"></div></div></div>';
+    definirIdioma("en");
+    marcarListados(document, new Map([["730_2_1", 3500], ["730_2_2", 100]]), (c) => `R$ ${c / 100}`, false, new Set(["730_2_2"]));
+    expect(document.getElementById("730_2_1")!.querySelector(".sv-listado")!.textContent).toBe("Listed R$ 35");
+    expect(document.getElementById("730_2_2")!.querySelector(".sv-listado")!.textContent).toBe("Needs approval");
   });
 });

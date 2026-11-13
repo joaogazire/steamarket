@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>steamarket</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --fundo: #171d25;
+    --cartao: #1f2833;
+    --tx: #c6d4df;
+    --mudo: #8f98a0;
+    --verde: #a4d007;
+    --verde-esc: #5c7e10;
+    --suave: cubic-bezier(.2, .8, .2, 1);
+  }
+  body { margin: 0; min-width: 300px; background: var(--fundo); color: var(--tx); font: 14px/1.5 "Motiva Sans", "Segoe UI", Arial, sans-serif; }
+  main { display: flex; flex-direction: column; gap: 16px; padding: 20px; max-width: 480px; }
+  h1 { margin: 0; color: #fff; font-size: 17px; font-weight: 600; }
+  section { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 12px; background: var(--cartao); }
+  .sv-cab-secao { display: flex; align-items: baseline; justify-content: space-between; }
+  h2 { margin: 0; color: var(--mudo); font-size: 11px; font-weight: 600; letter-spacing: .7px; text-transform: uppercase; }
+  .sv-dica { margin: 0; color: var(--mudo); font-size: 12px; }
+  .sv-salvo { color: var(--verde); font-size: 12px; font-weight: 600; opacity: 0; transition: opacity .25s; }
+  .sv-salvo.sv-visivel { opacity: 1; }
+  .sv-idiomas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 3px; border-radius: 10px; background: rgba(255, 255, 255, .05); }
+  .sv-idioma { height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--mudo); font: 600 13px/1 inherit; font-family: inherit; cursor: pointer; transition: background .18s, color .18s, transform .12s var(--suave); }
+  .sv-idioma:hover { color: #fff; background: rgba(255, 255, 255, .06); }
+  .sv-idioma:active { transform: scale(.96); }
+  .sv-idioma[aria-checked="true"] { background: var(--verde-esc); color: #fff; }
+  .sv-idioma:focus-visible { outline: 2px solid var(--verde); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main></main>
+<script src="ajustes.js"></script>
+</body>
+</html>

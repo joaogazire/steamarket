@@ -8,6 +8,7 @@ rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist", { recursive: true });
 cpSync("manifest.json", "dist/manifest.json");
 cpSync("icons", "dist/icons", { recursive: true });
+cpSync("ajustes.html", "dist/ajustes.html");
 
 const base = {
   bundle: true,
@@ -22,6 +23,7 @@ const base = {
 const entradas = [
   { entryPoints: ["src/background/index.ts"], outfile: "dist/background.js" },
   { entryPoints: ["src/content/index.ts"], outfile: "dist/content.js" },
+  { entryPoints: ["src/ajustes/index.ts"], outfile: "dist/ajustes.js" },
 ];
 
 for (const e of entradas) {

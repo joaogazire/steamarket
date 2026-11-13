@@ -1,21 +1,44 @@
-# Steam Vendas
+# steamarket
 
-Extensão Firefox (MV3) que adiciona um painel na página do seu inventário Steam: agrupa itens iguais, mostra preços e histórico, sugere preço em 3 modos e vende em lote.
+Extensão para Firefox que coloca preço, total e venda rápida na página do **seu próprio** inventário da Steam.
 
-## Rodar
+*Firefox extension that adds prices, totals and quick selling to your own Steam inventory page. English and Spanish are available in the settings.*
+
+## O que faz
+
+- Mostra o preço sugerido em cada item da grade e o total do inventário (com quanto você recebe depois das taxas).
+- **Listar** em cada item, ou selecione vários e use **Listar N** para vender em lote.
+- Ordena por preço, agrupa itens iguais e manda os já listados e os "Not Marketable" para o fim.
+- Idiomas: português, inglês e espanhol (clique no logo do painel ou no ícone da extensão).
+
+## Segurança
+
+- Só age quando você clica. Toda venda ainda precisa ser **confirmada por você no app da Steam no celular**.
+- Antes de cada venda, confere o menor anúncio na Steam e recusa preços fora do mercado (menos da metade ou mais do dobro).
+- Não coleta dados. O único servidor fora da Steam é `prices.csgotrader.app`, de onde baixa uma tabela pública de preços do CS2 (sem cookies, sem enviar nada seu).
+- A venda é feita de dentro da página da Steam (`content.fetch`), com a sua sessão, como o botão "Sell" da própria Steam.
+- Por enquanto a venda só funciona com carteira em reais (BRL).
+
+## Desenvolvimento / Build (for reviewers)
+
+Requirements: Node.js 22+ and npm. Linux, macOS or Windows.
 
 ```
-npm install
-npm test            # testes (vitest)
-npm run build       # gera dist/
-npx web-ext run --source-dir dist    # abre o Firefox com a extensão temporária
+npm ci                    # install exact dependencies
+node scripts/build.mjs    # bundles src/ with esbuild into dist/ (same as: npm run build)
 ```
 
-## Instalar de forma permanente
+`dist/` is the add-on as uploaded (manifest, icons, `ajustes.html` and the bundled `background.js`, `content.js`, `ajustes.js`). The bundles are plain esbuild IIFE output of the TypeScript in `src/`, no minification.
 
-`npm run assinar` assina como extensão não listada (precisa de `WEB_EXT_API_KEY` e `WEB_EXT_API_SECRET` da conta do Firefox Add-ons) e gera um `.xpi` em `web-ext-artifacts/`.
+Other commands:
 
-## Antes do primeiro uso real
+```
+npm test                              # vitest
+npx tsc --noEmit                      # types
+npx web-ext lint --source-dir dist    # add-on lint
+npx web-ext run --source-dir dist     # try it in a temporary Firefox profile
+```
 
-As respostas da Steam usadas nos testes são parcialmente sintéticas. Leia `fixtures/NOTAS.md` e rode a captura (`scripts/capturar.ts`) com a sua sessão para validar o formato real.
-Comece vendendo 1 item barato e confirme no celular.
+## Licença
+
+MIT. Not affiliated with Valve or Steam.

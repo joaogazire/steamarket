@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { comprador, liquido } from "./taxas.ts";
+import { comprador, liquido, menorTotal } from "./taxas.ts";
 import { REGRA_PADRAO } from "./tipos.ts";
 
 // Oráculo: o JS público da Steam (fixtures/referencia), executado como está.
@@ -66,6 +66,8 @@ describe("robustez das taxas", () => {
   });
   it("recusa total abaixo do mínimo possível (1 de líquido custa 3)", () => {
     expect(() => liquido(2, REGRA_PADRAO)).toThrow("abaixo do mínimo");
+    // a mensagem traz os números, para achar a causa quando a carteira vem com outro mínimo
+    expect(() => liquido(17, { ...REGRA_PADRAO, minimo: 20 })).toThrow("total 17 abaixo do mínimo 60 (centavos; mínimo da carteira 20)");
   });
   it("recusa regra de taxa inválida", () => {
     expect(() => comprador(100, { ...REGRA_PADRAO, taxaJogo: NaN })).toThrow("regra");
@@ -76,5 +78,13 @@ describe("robustez das taxas", () => {
     for (let total = 3; total <= 3000; total++) {
       expect(comprador(liquido(total, REGRA_PADRAO), REGRA_PADRAO)).toBeLessThanOrEqual(total);
     }
+  });
+});
+
+describe("menorTotal (menor preço que a Steam aceita listar)", () => {
+  it("é o mínimo da carteira mais as duas taxas mínimas", () => {
+    expect(menorTotal(REGRA_PADRAO)).toBe(3);
+    // BRL: mínimo 6 → R$ 0,18, igual ao "Starting at" de itens baratos (captura 13/11/2026)
+    expect(menorTotal({ ...REGRA_PADRAO, minimo: 6 })).toBe(18);
   });
 });

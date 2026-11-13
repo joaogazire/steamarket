@@ -2,17 +2,25 @@
 import type { Resposta } from "../background/roteador.ts";
 import { agrupar } from "../core/agrupar.ts";
 import { motivoParaNaoListar, sugerir, type FontePreco } from "../core/sugestao.ts";
-import { liquido as liquidoDe } from "../core/taxas.ts";
+import { liquido as liquidoDe, menorTotal } from "../core/taxas.ts";
+import { reais, somarTotal } from "../core/total.ts";
+import { definirIdioma, idioma, lerIdioma, tx, type Idioma } from "../core/i18n.ts";
+import { montarMenuAjustes } from "./ajustes.ts";
+
+declare const __BUILD__: string | undefined;
 import type { Ativo, Grupo, Ponto } from "../core/tipos.ts";
-import { renderControles, type OpcoesPainel } from "./controles.ts";
+import { lerOrdem, renderControles, type OpcoesPainel, type Ordem } from "./controles.ts";
 import { lerAppDaPagina, lerContexto } from "./contexto.ts";
 import cssPainel from "./estilo.css";
 import { esperarInventarioDaPagina } from "./inventario-pagina.ts";
-import { aplicarPrecos, idDoQuadrado, idsVisiveis, marcarListados, ordenarListados } from "./overlay.ts";
+import { acaoDoBotao, aplicarPrecos, idsVisiveis, marcarGrupos, marcarListados, ordenarGrade, type AcaoQuadrado } from "./overlay.ts";
 import { montarPainel, posicionar } from "./painel.ts";
+import { chaveDeOrdem as chaveOrdem, fotografarPrecos, proximoParaRefinar } from "./ordem.ts";
+import { criarTodasPaginas, recarregarImagens } from "./paginas-steam.ts";
 import { tratarPorta } from "./porta.ts";
 import type { DadosPreco } from "../background/roteador.ts";
-import { vender } from "../steam/cliente.ts";
+import { ErroSessao, vender } from "../steam/cliente.ts";
+import { ErroLimite } from "../background/fila.ts";
 import { fetchDaPagina } from "./fetch-pagina.ts";
 
 /** A formatação de preços é em reais; outras moedas não vendem até serem suportadas (BRL = 7 na Steam). */
@@ -43,14 +51,83 @@ async function principal(): Promise<void> {
     tratarPorta(m, { avisar: (t) => painel.avisar(t), progresso: (id, k, n) => progressos.get(id)?.(k, n) }),
   );
 
-  const formatar = (c: number) => `R$ ${(c / 100).toFixed(2).replace(".", ",")}`;
-  let opcoes: OpcoesPainel = { ocultarListados: false, cliqueLista: false };
-  const controles = renderControles(painel.conteudo, { aoMudar: (o) => ((opcoes = o), reaplicar()) });
+  /** Erro vindo do background no idioma escolhido (detalhes técnicos de formato ficam como vieram). */
+  const mensagemDe = (r: { erro?: string; mensagem?: string }): string =>
+    r.erro === "sessao" ? tx().erroSessao
+    : r.erro === "limite" ? tx().erroLimite
+    : r.erro === "rede" ? tx().erroRede
+    : r.erro === "interno" ? tx().erroInterno
+    : (r.mensagem ?? tx().erroInterno);
+  const formatar = reais; // um formato só (com milhar) na grade, nos avisos e no total
+  // A última ordem, o "agrupar" e o filtro de Not Marketable ficam salvos (valem ao recarregar ou voltar à página).
+  let ordemSalva: Ordem = "steam";
+  let agruparSalvo = false;
+  let naoVendaveisSalvo = false;
+  try {
+    const salvo = await browser.storage.local.get(["ordem", "agrupar", "ocultarNaoVendaveis", "idioma"]);
+    definirIdioma(lerIdioma(salvo.idioma, browser.i18n.getUILanguage()));
+    ordemSalva = lerOrdem(salvo.ordem);
+    agruparSalvo = salvo.agrupar === true;
+    naoVendaveisSalvo = salvo.ocultarNaoVendaveis === true;
+  } catch {
+    /* sem storage: começa no padrão */
+  }
+  let opcoes: OpcoesPainel = { ocultarListados: true, ocultarNaoVendaveis: naoVendaveisSalvo, ordem: ordemSalva, agrupar: agruparSalvo };
+  painel.atualizarTextos();
+  const criarControles = () => renderControles(
+    painel.conteudo,
+    {
+      aoListarSelecionados: () => void listarSelecionados(),
+      aoMudar: (o) => {
+        if (o.ordem !== opcoes.ordem || o.agrupar !== opcoes.agrupar || o.ocultarNaoVendaveis !== opcoes.ocultarNaoVendaveis) {
+          browser.storage.local
+            .set({ ordem: o.ordem, agrupar: o.agrupar, ocultarNaoVendaveis: o.ocultarNaoVendaveis })
+            .catch(() => undefined);
+        }
+        opcoes = o;
+        congelarOrdem();
+        reaplicar();
+      },
+    },
+    opcoes,
+    { resumo: painel.resumo },
+  );
+  let controles = criarControles();
+
+  // Idioma: escolhido no menu do logo ou na página de configurações; troca tudo sem recarregar.
+  const aplicarIdioma = (i: Idioma) => {
+    if (i === idioma()) return;
+    definirIdioma(i);
+    controles = criarControles();
+    painel.atualizarTextos();
+    reaplicar();
+  };
+  const menu = montarMenuAjustes(painel.logo, painel.raiz, {
+    atual: idioma,
+    aoEscolher: (i) => {
+      aplicarIdioma(i);
+      browser.storage.local.set({ idioma: i }).catch(() => undefined);
+    },
+    rodape: typeof __BUILD__ === "string" ? `steamarket · build ${__BUILD__}` : "steamarket",
+  });
+  browser.storage.onChanged.addListener((m, area) => {
+    if (area === "local" && "idioma" in m) aplicarIdioma(lerIdioma(m.idioma?.newValue, browser.i18n.getUILanguage()));
+  });
+  // Fecha o menu ao clicar fora dele (na página ou no resto do painel).
+  document.addEventListener("click", (e) => {
+    if (!e.composedPath().includes(painel.el)) menu.fechar();
+  });
+  painel.raiz.addEventListener("click", (e) => {
+    const caminho = e.composedPath();
+    if (!caminho.includes(painel.logo) && !caminho.some((n) => n instanceof HTMLElement && n.classList.contains("sv-menu"))) menu.fechar();
+  });
 
   /** id do quadrado na Steam (appid_contextid_assetid) → texto do preço sugerido exibido por cima dele */
   const precosGrade = new Map<string, string>();
   /** quadrados de itens já anunciados → preço anunciado (centavos) */
   const listados = new Map<string, number | null>();
+  /** recém-listados nesta visita que esperam aprovação no celular: ficam no mesmo lugar da grade */
+  const aguardando = new Set<string>();
   /** quadrado → item e preço sugerido (centavos); o clique no quadrado lista esse item */
   const porQuadrado = new Map<string, { grupo: Grupo; ativo: Ativo; preco: number | null; fonte: FontePreco }>();
   const emVenda = new Set<string>();
@@ -64,13 +141,108 @@ async function principal(): Promise<void> {
   let timerAviso: ReturnType<typeof setTimeout> | undefined;
 
   let inventarioCompleto = false;
+  /** inventário e nº de páginas em que criarTodasPaginas já rodou */
+  let paginasDe: unknown = null;
+  let paginasN = -1;
 
   /** Listados = itens que a página marca como "On Market" (+ mylistings, que traz o preço anunciado). */
   function reaplicar(): void {
     posicionar(painel!.el, document);
-    aplicarPrecos(document, precosGrade);
-    marcarListados(document, listados, formatar, false);
-    ordenarListados(document, (id) => listados.has(id), opcoes.ocultarListados);
+    // A Steam cria as páginas da grade sob demanda; para mandar os listados ao fim, todas precisam existir.
+    const inv = pagina!.g_ActiveInventory;
+    const mexeNaGrade = opcoes.ocultarListados || opcoes.ocultarNaoVendaveis || opcoes.ordem !== "steam" || opcoes.agrupar;
+    if (mexeNaGrade && inventarioCompleto) {
+      // uma vez por inventário (ou quando a Steam muda o número de páginas), não a cada reaplicar
+      const nPaginas = (inv as { m_rgPages?: unknown[] } | undefined)?.m_rgPages?.length ?? -1;
+      if (inv !== paginasDe || nPaginas !== paginasN) {
+        criarTodasPaginas(inv);
+        paginasDe = inv;
+        paginasN = nPaginas;
+      }
+    }
+    agruparIguais();
+    aplicarPrecos(document, precosGrade, acoesDosQuadrados());
+    const nSel = selecionaveis().length;
+    document.documentElement.classList.toggle("sv-selecionando", nSel > 0);
+    controles.selecao(nSel, lote ? { feitos: lote.feitos, total: lote.total } : undefined);
+    marcarListados(document, listados, formatar, false, aguardando);
+    mostrarTotal();
+    if (ordenarGrade(document, chaveDeOrdem)) {
+      suavizarGrade();
+      recarregarImagens(inv); // itens que mudaram de página precisam da imagem
+      void refinarVisiveis(); // e do preço da Steam, se agora estão na tela
+    }
+  }
+
+  /** Total sugerido no fim do painel: itens ainda não listados, pelo preço mostrado na grade. */
+  function mostrarTotal(): void {
+    if (!inventarioCompleto) return controles.total(null);
+    const precos = [...porQuadrado].filter(([id]) => !listados.has(id)).map(([, q]) => q.preco);
+    const liq = (c: number) => liquidoDe(c, ctx!.regra);
+    controles.total(somarTotal(precos, liq));
+    controles.totalSelecionados(somarTotal(selecionaveis().map((id) => porQuadrado.get(id)?.preco ?? null), liq));
+  }
+
+  /** Foto dos preços que ordena a grade; só muda ao carregar ou ao mexer nas opções (os itens não pulam ao refinar). */
+  let precosOrdem = new Map<string, number | null>();
+  /** quadrados "Not Marketable" (não vão ao mercado): o filtro manda para o fim */
+  const naoVendaveis = new Set<string>();
+  const congelarOrdem = () => void (precosOrdem = fotografarPrecos(porQuadrado, listados));
+  const chaveDeOrdem = (id: string) =>
+    chaveOrdem(id, {
+      ordem: opcoes.ordem,
+      ocultarListados: opcoes.ocultarListados,
+      ocultarNaoVendaveis: opcoes.ocultarNaoVendaveis,
+      naoVendaveis,
+      copias,
+      listados,
+      aguardando,
+      precos: precosOrdem,
+    });
+
+  /** A grade mudou de ordem: um fade curto em vez de um salto seco (respeita "reduzir movimento"). */
+  function suavizarGrade(): void {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    document.querySelector("#inventories")?.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 260, easing: "cubic-bezier(.2,.8,.2,1)" });
+  }
+
+  /** Agrupar itens iguais: cópias escondidas (não listadas) e a quantidade de cada representante. */
+  const copias = new Set<string>();
+  /** representante → todos os iguais não listados (para selecionar o grupo inteiro) */
+  const membros = new Map<string, string[]>();
+  function agruparIguais(): void {
+    copias.clear();
+    membros.clear();
+    const quantidades = new Map<string, number>();
+    if (opcoes.agrupar) {
+      const vistos = new Set<Grupo>();
+      for (const q of porQuadrado.values()) {
+        if (vistos.has(q.grupo)) continue;
+        vistos.add(q.grupo);
+        const ids = q.grupo.ativos.map(idDe).filter((id) => porQuadrado.has(id) && !listados.has(id));
+        if (ids.length === 0) continue;
+        // o que está sendo vendido agora continua à vista; senão, o primeiro da Steam
+        const rep = ids.find((id) => emVenda.has(id)) ?? (ids[0] as string);
+        quantidades.set(rep, ids.length);
+        membros.set(rep, ids);
+        for (const id of ids) if (id !== rep) copias.add(id);
+      }
+    }
+    marcarGrupos(document, quantidades, copias);
+  }
+
+  /** Botão de cada quadrado vendável: Listar pelo preço mostrado. */
+  function acoesDosQuadrados(): Map<string, AcaoQuadrado[]> {
+    const acoes = new Map<string, AcaoQuadrado[]>();
+    for (const [id, q] of porQuadrado) {
+      if (emVenda.has(id) || listados.has(id) || q.preco === null) continue;
+      const n = membros.get(id)?.length ?? 1;
+      acoes.set(id, [
+        { acao: "selecionar", rotulo: "", aria: n > 1 ? tx().selecionarOsN(n) : tx().selecionarParaListar, marcado: selecionados.has(id) },
+        { acao: "listar", rotulo: tx().listar, aria: tx().listarNoMercadoPor(formatar(q.preco)) },
+      ]);
+    }
+    return acoes;
   }
 
   // Cada chamada leva um número; resposta de chamada antiga (outro jogo) é descartada.
@@ -81,22 +253,26 @@ async function principal(): Promise<void> {
     try {
       await carregarJogo();
     } catch (e) {
-      controles.status(`erro: ${e instanceof Error ? e.message : String(e)}`);
+      controles.status(tx().erro(e instanceof Error ? e.message : String(e)));
     }
   }
 
   async function carregarJogo(): Promise<void> {
     const app = lerAppDaPagina(document, location.hash);
-    if (!app) return controles.status("não achei o jogo aberto (hash vazio)");
+    if (!app) return controles.status(tx().semJogo);
     const jogoId = `${app.appid}_${app.contextid}`;
     const meu = ++seqCarregar;
     painel!.trocarJogo(jogoId);
     precosGrade.clear();
     listados.clear();
+    aguardando.clear();
+    selecionados.clear();
     porQuadrado.clear();
+    naoVendaveis.clear();
     refinados.clear();
+    comPrecoRapido.clear();
     inventarioCompleto = false;
-    controles.status("lendo o inventário da página…");
+    controles.status(""); // o carregamento não aparece na tela; o status só mostra erro
     // A página da Steam já tem o inventário (e marca o que está à venda); pedir de novo dava 500.
     const lido = await esperarInventarioDaPagina(() => pagina!.g_ActiveInventory, app.appid);
     if (meu !== seqCarregar || painel!.jogoAtual() !== jogoId) return;
@@ -104,34 +280,37 @@ async function principal(): Promise<void> {
     if (lido) {
       todos = lido.ativos.filter((a) => !a.listado);
       for (const a of lido.ativos) if (a.listado) listados.set(idDe(a), null);
-      if (!lido.completo) aviso("a página ainda não carregou o inventário todo; parte dos itens fica sem preço", 15000);
+      if (!lido.completo) aviso(tx().inventarioIncompleto, 15000);
     } else {
-      controles.status("carregando inventário…");
       const r = await enviar({ tipo: "inventario", steamid: ctx!.steamid, appid: app.appid, contextid: app.contextid, grupoId: jogoId });
       if (meu !== seqCarregar || painel!.jogoAtual() !== jogoId) return;
-      if (!r.ok) return controles.status(r.mensagem);
+      if (!r.ok) return controles.status(mensagemDe(r));
       todos = r.dados as Ativo[];
     }
+    for (const a of todos) if (!a.marketable) naoVendaveis.add(idDe(a));
     const grupos = agrupar(todos);
     for (const g of grupos) for (const a of g.ativos) porQuadrado.set(idDe(a), { grupo: g, ativo: a, preco: null, fonte: "estimado" });
     inventarioCompleto = true;
+    congelarOrdem();
     reaplicar();
     // Preço estimado de tudo num pedido só (CS2); o histórico da Steam refina depois, item a item.
-    controles.status("buscando preços…");
     const massa = await enviar({ tipo: "precos-massa", appid: app.appid, nomes: grupos.map((g) => g.nome), moeda: ctx!.moeda, grupoId: jogoId });
     if (meu !== seqCarregar || painel!.jogoAtual() !== jogoId) return;
     if (massa.ok && massa.dados) {
       const precos = massa.dados as Record<string, number>;
       for (const g of grupos) {
         const p = Object.hasOwn(precos, g.nome) ? precos[g.nome] : undefined;
-        if (typeof p === "number") definirPreco(g, p, "estimado");
+        if (typeof p === "number") {
+          definirPreco(g, p, "estimado");
+          comPrecoRapido.add(g.nome);
+        }
       }
+      congelarOrdem(); // ordena tudo uma vez, já pelo preço
       reaplicar();
     } else if (!massa.ok) {
-      aviso(`preços rápidos indisponíveis (${massa.mensagem}); seguindo pelo histórico da Steam`, 10000);
+      aviso(tx().precosRapidosIndisponiveis(mensagemDe(massa)), 10000);
     }
     // Preço anunciado dos itens já à venda (pelo assetid; o contexto da grade pode ser 2 ou 16).
-    controles.status("buscando itens já listados…");
     const an = await enviar({ tipo: "anuncios", appid: app.appid, grupoId: jogoId });
     if (meu !== seqCarregar || painel!.jogoAtual() !== jogoId) return;
     if (an.ok && an.dados) {
@@ -140,16 +319,20 @@ async function principal(): Promise<void> {
       for (const [id, preco] of Object.entries(an.dados as Record<string, number | null>)) {
         listados.set(conhecidos.get(assetDe(id)) ?? id, preco);
       }
+      congelarOrdem();
       reaplicar();
     } else if (!an.ok) {
-      aviso(`não consegui ler os itens já listados: ${an.mensagem}`, 15000);
+      aviso(tx().naoLeuListados(mensagemDe(an)), 15000);
     }
+    controles.status(""); // carregou: o status some (só volta para erro ou limite da Steam)
     // O histórico da Steam (lento, 3 s por item) só para a página da grade que está na tela.
     void refinarVisiveis();
   }
 
   /** nomes cujo histórico da Steam já foi pedido nesta carga */
   const refinados = new Set<string>();
+  /** nomes com preço rápido (CS2): não passam pelo histórico, para a grade mostrar e ordenar pela mesma fonte */
+  const comPrecoRapido = new Set<string>();
   let refinando = false;
 
   /** Refina pelo histórico da Steam os itens da página visível da grade; ao trocar de página, segue pelos novos. */
@@ -162,19 +345,15 @@ async function principal(): Promise<void> {
         const jogoId = painel!.jogoAtual();
         if (!inventarioCompleto || !jogoId) return;
         const daPagina = [...new Set(idsVisiveis(document).flatMap((id) => porQuadrado.get(id)?.grupo ?? []))];
-        const g = daPagina.find((x) => !refinados.has(x.nome));
-        if (!g) {
-          if (daPagina.length > 0) controles.status(`preços da página: ${daPagina.length}/${daPagina.length}`);
-          return;
-        }
+        const g = proximoParaRefinar(daPagina, refinados, comPrecoRapido);
+        if (!g) return;
         refinados.add(g.nome);
-        controles.status(`preços da página: ${daPagina.filter((x) => refinados.has(x.nome)).length}/${daPagina.length}`);
         const r = await enviar({ tipo: "historico", appid: String(g.appid), nome: g.nome, grupoId: jogoId });
         if (meu !== seqCarregar || painel!.jogoAtual() !== jogoId) continue; // outra carga: segue com o estado novo
         if (!r.ok) {
           if (r.erro === "sessao" || r.erro === "limite") {
             refinados.delete(g.nome);
-            controles.status(r.mensagem);
+            controles.status(mensagemDe(r));
             return;
           }
           continue;
@@ -189,7 +368,9 @@ async function principal(): Promise<void> {
     }
   }
 
-  function definirPreco(g: Grupo, preco: number, fonte: FontePreco): void {
+  function definirPreco(g: Grupo, precoBruto: number, fonte: FontePreco): void {
+    // Abaixo do mínimo da Steam (BRL: R$ 0,18) a venda é recusada; mostra e lista pelo mínimo.
+    const preco = Math.max(precoBruto, menorTotal(ctx!.regra));
     for (const a of g.ativos) {
       const id = idDe(a);
       if (emVenda.has(id) || listados.has(id)) continue;
@@ -202,54 +383,63 @@ async function principal(): Promise<void> {
     }
   }
 
-  const aviso = (t: string, ms = 6000) => {
-    painel!.avisar(t);
+  const aviso = (t: string, ms = 6000, tipo?: "ok") => {
+    painel!.avisar(t, tipo);
     if (timerAviso) clearTimeout(timerAviso);
     timerAviso = setTimeout(() => painel!.avisar(null), ms);
   };
 
   /** Clique no quadrado: lista aquele item pelo preço sugerido; a confirmação final é no app da Steam. */
-  async function venderQuadrado(id: string): Promise<void> {
+  /**
+   * Lista um quadrado pelo preço mostrado, depois de conferir o menor anúncio na Steam.
+   * `silencioso`: não mostra aviso por item (a lista em lote resume no fim). Devolve se listou e, se não, por quê.
+   */
+  async function venderQuadrado(id: string, silencioso = false): Promise<{ ok: boolean; motivo?: string; parar?: boolean }> {
+    /** `parar`: sessão expirada ou limite da Steam; o lote para em vez de insistir item a item */
+    const falhar = (motivo: string, ms = 12000, parar = false) => {
+      if (!silencioso) aviso(motivo, ms);
+      return { ok: false, motivo, parar };
+    };
     const q = porQuadrado.get(id);
-    if (!q || q.preco === null || emVenda.has(id) || listados.has(id)) return;
-    if (vendendo) return aviso("já existe uma venda em andamento; espere terminar");
-    if (ctx!.moeda !== MOEDA_SUPORTADA) return aviso("A venda só funciona com carteira em reais (BRL) nesta versão.");
-    const preco = q.preco;
+    const preco = q?.preco ?? null;
+    if (!q || preco === null || emVenda.has(id) || listados.has(id)) return { ok: false, motivo: tx().itemIndisponivel };
+    if (vendendo) return falhar(tx().vendaEmAndamento, 6000);
+    if (ctx!.moeda !== MOEDA_SUPORTADA) return falhar(tx().soBRL);
     vendendo = true;
     emVenda.add(id);
     const textoAntes = formatar(preco);
     try {
-      precosGrade.set(id, "conferindo…");
+      precosGrade.set(id, tx().conferindo);
       reaplicar();
-      aviso("conferindo o mercado…", 20000);
       const r = await enviar({ tipo: "preco", appid: String(q.grupo.appid), nome: q.grupo.nome, moeda: ctx!.moeda, pais: ctx!.pais, grupoId: painel!.jogoAtual() ?? "x" });
-      if (!r.ok) return aviso(`não consegui conferir o mercado (${r.mensagem})`);
+      if (!r.ok) return falhar(tx().naoConferiuMercado(mensagemDe(r)), 12000, r.erro === "sessao" || r.erro === "limite");
       const menor = (r.dados as DadosPreco).visao.menorAnuncio;
       const motivo = motivoParaNaoListar(preco, menor, q.fonte);
       if (motivo) {
-        const ref = menor !== null ? ` (menor anúncio ${formatar(menor)})` : "";
-        return aviso(`${q.grupo.nome}: ${formatar(preco)} ${motivo}${ref}; não listei`, 12000);
+        const ref = menor !== null ? ` (${tx().menorAnuncio(formatar(menor))})` : "";
+        return falhar(tx().naoListei(q.grupo.nome, formatar(preco), `${motivo}${ref}`));
       }
       const liquido = liquidoDe(preco, ctx!.regra);
-      if (!Number.isSafeInteger(liquido) || liquido < 1) return aviso("preço inválido para venda");
-      precosGrade.set(id, "listando…");
+      if (!Number.isSafeInteger(liquido) || liquido < 1) return falhar(tx().precoInvalido);
+      precosGrade.set(id, tx().listando);
       reaplicar();
-      aviso(`listando ${q.grupo.nome} por ${formatar(preco)}…`, 15000);
       const espera = FOLGA_VENDA_MS - (Date.now() - ultimaVenda);
       if (espera > 0) await new Promise((ok) => setTimeout(ok, espera));
       const res = await vender(fetchVenda, { sessionid: ctx!.sessionid, steamid: ctx!.steamid }, q.ativo, liquido).finally(
         () => (ultimaVenda = Date.now()),
       );
-      if (res.ok) {
-        q.preco = null;
-        precosGrade.delete(id);
-        listados.set(id, preco);
-        aviso(res.precisaConfirmar ? "listado: falta aprovar no app da Steam no celular" : "listado no mercado", 15000);
-      } else {
-        aviso(`recusado: ${res.motivo}`, 15000);
-      }
+      if (!res.ok) return falhar(tx().recusado(res.motivo), 15000);
+      q.preco = null;
+      precosGrade.delete(id);
+      listados.set(id, preco);
+      selecionados.delete(id);
+      if (res.precisaConfirmar) aguardando.add(id);
+      if (!silencioso) aviso(res.precisaConfirmar ? tx().listadoAprove : tx().listadoOk, 5000, "ok");
+      return { ok: true };
     } catch (e) {
-      aviso(e instanceof Error ? e.message : "venda recusada");
+      if (e instanceof ErroSessao) return falhar(tx().erroSessao, 12000, true);
+      if (e instanceof ErroLimite) return falhar(tx().erroLimite, 12000, true);
+      return falhar(e instanceof Error ? e.message : tx().vendaRecusada);
     } finally {
       vendendo = false;
       emVenda.delete(id);
@@ -258,15 +448,69 @@ async function principal(): Promise<void> {
     }
   }
 
-  // Só clique real do usuário (isTrusted) em quadrado conhecido, com a opção ligada. O clique segue normal para a Steam.
+  /** Seleção para listar vários de uma vez (com "agrupar", marcar o quadrado marca o grupo inteiro). */
+  const selecionados = new Set<string>();
+  let lote: { feitos: number; total: number; parar: boolean } | null = null;
+
+  const selecionaveis = () => [...selecionados].filter((id) => {
+    const q = porQuadrado.get(id);
+    return q && q.preco !== null && !listados.has(id);
+  });
+
+  function alternarSelecao(id: string): void {
+    const ids = membros.get(id) ?? [id];
+    const marcar = !selecionados.has(id);
+    for (const x of ids) {
+      if (marcar) selecionados.add(x);
+      else selecionados.delete(x);
+    }
+    reaplicar();
+  }
+
+  /** "Listar N": lista os selecionados em sequência, cada um pelo seu preço; clicar de novo para depois do atual. */
+  async function listarSelecionados(): Promise<void> {
+    if (lote) {
+      lote.parar = true;
+      return;
+    }
+    if (vendendo) return aviso(tx().vendaEmAndamento, 6000);
+    const fila = selecionaveis();
+    if (fila.length === 0) return;
+    lote = { feitos: 0, total: fila.length, parar: false };
+    let listadosAgora = 0;
+    const recusas: string[] = [];
+    try {
+      for (const id of fila) {
+        if (lote.parar) break;
+        reaplicar();
+        const r = await venderQuadrado(id, true);
+        lote.feitos++;
+        if (r.ok) listadosAgora++;
+        else if (r.motivo) recusas.push(r.motivo);
+        if (r.parar) break; // sessão expirada ou limite da Steam: não adianta seguir
+      }
+    } finally {
+      const parou = lote.parar && lote.feitos < lote.total;
+      lote = null;
+      reaplicar();
+      const partes = listadosAgora > 0 ? [tx().loteListados(listadosAgora)] : [];
+      if (recusas.length) partes.push(tx().loteNaoListados(recusas.length, recusas[0] as string));
+      if (parou) partes.push(tx().parado);
+      aviso(partes.join(" · "), recusas.length ? 12000 : 6000, recusas.length || listadosAgora === 0 ? undefined : "ok");
+    }
+  }
+
+  // Só clique real do usuário (isTrusted) nos botões do quadrado (seleção e Listar); qualquer clique pode trocar a página da grade.
   document.addEventListener("click", (e) => {
     if (!e.isTrusted) return;
-    // trocar de página da grade (setas da Steam) muda os itens visíveis
     setTimeout(() => void refinarVisiveis(), 400);
-    if (!opcoes.cliqueLista) return;
-    const id = idDoQuadrado(e.target);
-    if (id) void venderQuadrado(id);
-  });
+    const alvo = acaoDoBotao(e.target);
+    if (!alvo) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (alvo.acao === "listar") void venderQuadrado(alvo.id);
+    else if (alvo.acao === "selecionar" && !lote) alternarSelecao(alvo.id);
+  }, true);
 
   window.addEventListener("hashchange", () => void carregar());
   // A Steam refaz os quadrados ao trocar de página da grade; reaplica as marcas (com folga para não repetir à toa).

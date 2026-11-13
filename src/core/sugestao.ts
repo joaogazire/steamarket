@@ -1,3 +1,4 @@
+import { tx } from "./i18n.ts";
 import { medianaUltimas } from "./historico.ts";
 import type { Ponto } from "./tipos.ts";
 
@@ -53,6 +54,6 @@ export type FontePreco = "steam" | "estimado";
  */
 export function motivoParaNaoListar(precoComprador: number, menorAnuncio: number | null, fonte: FontePreco): string | null {
   const temMenor = menorAnuncio !== null && Number.isSafeInteger(menorAnuncio) && menorAnuncio > 0;
-  if (!temMenor) return fonte === "estimado" ? "sem anúncio na Steam para conferir o preço estimado" : null;
-  return foraDoMercado(precoComprador, menorAnuncio) ? "fora do mercado" : null;
+  if (!temMenor) return fonte === "estimado" ? tx().semAnuncioParaConferir : null;
+  return foraDoMercado(precoComprador, menorAnuncio) ? tx().foraDoMercado : null;
 }

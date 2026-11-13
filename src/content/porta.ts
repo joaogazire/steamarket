@@ -1,4 +1,5 @@
 /** Mensagens que o background manda ao painel pela porta (PRC-03 e progresso do lote). */
+import { tx } from "../core/i18n.ts";
 export interface AcoesPorta {
   avisar(texto: string | null): void;
   progresso(loteId: string, k: number, n: number): void;
@@ -13,7 +14,7 @@ export function tratarPorta(m: unknown, acoes: AcoesPorta): void {
   if (!x) return;
   if (x.tipo === "pausa" && typeof x.ms === "number" && Number.isFinite(x.ms) && x.ms > 0) {
     const ms = Math.min(x.ms, MAX_PAUSA_MS);
-    acoes.avisar(`aguardando limite da Steam (${Math.round(ms / 1000)} s)`);
+    acoes.avisar(tx().aguardandoLimite(Math.round(ms / 1000)));
     clearTimeout(temporizador);
     temporizador = setTimeout(() => acoes.avisar(null), ms);
   } else if (

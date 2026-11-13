@@ -1,9 +1,9 @@
 {
-  "name": "steam-vendas",
-  "version": "0.1.0",
+  "name": "steamarket",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Extensão Firefox para vender itens do inventário Steam com agrupamento, histórico e sugestão de preço",
+  "description": "Extensão Firefox: preços, totais e venda (um a um ou em lote) no seu inventário da Steam",
   "scripts": {
     "build": "node scripts/build.mjs",
     "dev": "node scripts/build.mjs --watch",
@@ -21,7 +21,12 @@
     "vitest": "^3.0.0",
     "web-ext": "^8.0.0"
   },
-  "dependencies": {
-    "uplot": "^1.6.31"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joaogazire/steamarket"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

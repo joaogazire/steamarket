@@ -43,11 +43,20 @@ export function comprador(liquidoCentavos: number, r: RegraTaxa): number {
   return totalComTaxas(liquidoCentavos, r);
 }
 
+/** Menor preço (o que o comprador paga) que a Steam aceita: mínimo da carteira mais as duas taxas mínimas. */
+export function menorTotal(r: RegraTaxa): number {
+  exigirRegra(r);
+  return totalComTaxas(r.minimo, r);
+}
+
 /** FEE-01: quanto o vendedor recebe quando o comprador paga `totalCentavos`. */
 export function liquido(totalCentavos: number, r: RegraTaxa): number {
   exigirCentavos(totalCentavos);
   exigirRegra(r);
-  if (totalCentavos < totalComTaxas(r.minimo, r)) throw new Error("total abaixo do mínimo possível");
+  const menorTotal = totalComTaxas(r.minimo, r);
+  if (totalCentavos < menorTotal) {
+    throw new Error(`total ${totalCentavos} abaixo do mínimo ${menorTotal} (centavos; mínimo da carteira ${r.minimo})`);
+  }
   const palpite = Math.floor(totalCentavos / (1 + r.taxaJogo + r.taxaSteam));
   const maximo = totalCentavos - 2 * r.minimo;
   let base = precoValido(Math.min(palpite, maximo), r);
