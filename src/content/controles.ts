@@ -15,6 +15,10 @@ export interface OpcoesPainel {
   ordem: Ordem;
   /** um quadrado por item, com a quantidade; as cópias ficam escondidas no fim */
   agrupar: boolean;
+  /** só os itens marcados como bom momento para vender (borda dourada) */
+  apenasBons: boolean;
+  /** itens que não compensam vender (taxa alta) vão para o fim da grade */
+  ocultarBaratos: boolean;
 }
 
 export interface CallbacksControles {
@@ -72,7 +76,7 @@ export function renderControles(
 ): ControlesPainel {
   const doc = el.ownerDocument;
   for (const x of new Set([el, resumo])) x.replaceChildren();
-  const estado: OpcoesPainel = { ocultarListados: true, ocultarNaoVendaveis: false, ordem: "steam", agrupar: false, ...inicial };
+  const estado: OpcoesPainel = { ocultarListados: true, ocultarNaoVendaveis: false, ordem: "steam", agrupar: false, apenasBons: false, ocultarBaratos: false, ...inicial };
   const avisar = () => cb.aoMudar({ ...estado });
 
   const botaoIcone = (classe: string): HTMLButtonElement => {
@@ -83,7 +87,7 @@ export function renderControles(
   };
 
   // Filtros em ícone, liga/desliga (ligado = escondido no fim da grade).
-  const filtro = (classe: string, rotulo: string, formas: [string, Record<string, string>][], chave: "ocultarListados" | "ocultarNaoVendaveis") => {
+  const filtro = (classe: string, rotulo: string, formas: [string, Record<string, string>][], chave: "ocultarListados" | "ocultarNaoVendaveis" | "apenasBons" | "ocultarBaratos") => {
     const b = botaoIcone(classe);
     b.append(icone(doc, formas));
     b.setAttribute("aria-label", rotulo);
@@ -110,6 +114,15 @@ export function renderControles(
       ["rect", { x: "3", y: "7", width: "10", height: "7", rx: "1.6" }],
       ["path", { d: "M5.3 7V5a2.7 2.7 0 0 1 5.4 0v2" }],
     ], "ocultarNaoVendaveis"),
+    // moeda riscada: itens em que a taxa da Steam come boa parte do preço
+    filtro("sv-baratos-btn", tx().ocultarBaratos, [
+      ["circle", { cx: "8", cy: "8", r: "6" }],
+      ["path", { d: "M3.8 12.2 12.2 3.8" }],
+    ], "ocultarBaratos"),
+    // estrela dourada: só os bons negócios para vender agora
+    filtro("sv-bons-btn", tx().apenasBons, [
+      ["path", { d: "M8 1.8l1.9 3.9 4.2.6-3.1 3 .8 4.2L8 11.4l-3.8 2.1.8-4.2-3.1-3 4.2-.6L8 1.8Z" }],
+    ], "apenasBons"),
   );
 
   // Agrupar itens iguais: ícone de pilha, liga/desliga.
@@ -191,10 +204,37 @@ export function renderControles(
   const totalValor = doc.createElement("strong");
   const totalDetalhe = doc.createElement("span");
   totalDetalhe.className = "sv-mudo";
-  total.append(`${tx().total} `, totalValor, " ", totalDetalhe);
+  // Anel de carregamento dos preços (itens com preço / itens da seção); some quando chega a 100%.
+  const NS = "http://www.w3.org/2000/svg";
+  const anel = doc.createElement("span");
+  anel.className = "sv-anel";
+  anel.hidden = true;
+  const svg = doc.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", "0 0 20 20");
+  svg.setAttribute("width", "16");
+  svg.setAttribute("height", "16");
+  svg.setAttribute("aria-hidden", "true");
+  const fundo = doc.createElementNS(NS, "circle");
+  const arco = doc.createElementNS(NS, "circle");
+  for (const [c, cls] of [[fundo, "sv-anel-fundo"], [arco, "sv-anel-arco"]] as const) {
+    c.setAttribute("class", cls);
+    c.setAttribute("cx", "10");
+    c.setAttribute("cy", "10");
+    c.setAttribute("r", "8");
+    c.setAttribute("pathLength", "100");
+  }
+  arco.setAttribute("stroke-dasharray", "0 100");
+  svg.append(fundo, arco);
+  anel.append(svg); // a porcentagem sai do data-pct pelo CSS (fora do textContent do total)
+  total.append(anel, `${tx().total} `, totalValor, " ", totalDetalhe);
   const mostrarTotal = (t: Total | null) => {
     total.hidden = !t || t.itens === 0;
     if (total.hidden || !t) return;
+    const pct = Math.floor((t.comPreco / t.itens) * 100);
+    anel.hidden = t.comPreco >= t.itens;
+    arco.setAttribute("stroke-dasharray", `${pct} 100`);
+    anel.dataset.pct = `${pct}%`;
+    anel.title = tx().itensDe(t.comPreco, t.itens);
     trocarTexto(totalValor, reais(t.bruto));
     totalDetalhe.textContent = `(${tx().recebe(reais(t.liquido))}) · ${itensDe(t)}`;
   };

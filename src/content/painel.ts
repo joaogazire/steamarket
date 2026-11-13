@@ -105,12 +105,14 @@ export function posicionar(host: HTMLElement, doc: Document): void {
   if (logos?.id === "inventory_logos" && logos.style.minHeight) logos.style.minHeight = "";
   if (!logos || logos.id !== "inventory_logos" || !r || r.width < 200) {
     host.style.position = "";
-    host.style.left = host.style.right = host.style.top = host.style.maxWidth = "";
+    host.style.left = host.style.right = host.style.top = host.style.maxWidth = host.style.zIndex = "";
     return;
   }
   const base = logos.getBoundingClientRect();
   logos.style.position = "relative";
+  logos.style.overflow = "visible"; // a barra de seleção cresce para baixo da área do logo (mais baixa fora do CS2)
   host.style.position = "absolute";
+  host.style.zIndex = "20"; // por cima da busca e da grade logo abaixo
   // centraliza a linha de ícones e o total na área do logo; a barra de seleção cresce para baixo sem mexer neles
   host.style.top = `${Math.max(8, Math.round((base.height - ALTURA_BASE) / 2))}px`;
   host.style.left = "";

@@ -299,14 +299,14 @@ describe("roteador: preços em massa (csgotrader)", () => {
   });
 });
 
-describe("roteador: histórico guardado por 24 h", () => {
-  it("não pede o histórico de novo antes de 24 h", async () => {
+describe("roteador: histórico guardado por 12 h", () => {
+  it("não pede o histórico de novo antes de 12 h", async () => {
     let agora = 0;
     const steam = steamOk();
     const r = criarRoteador({ fila: filaDireta(), cache: cacheMemoria(() => agora), steam });
     const h = { tipo: "historico", appid: "730", nome: "Caixa", grupoId: "g1" };
     await r.tratar(h);
-    agora += 23 * 3_600_000;
+    agora += 11 * 3_600_000;
     await r.tratar(h);
     expect(steam.historico).toHaveBeenCalledTimes(1);
     agora += 2 * 3_600_000;

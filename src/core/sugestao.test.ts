@@ -65,6 +65,10 @@ describe("motivoParaNaoListar (preço de terceiros só lista se a Steam confirma
   it("preço estimado (csgotrader) sem menor anúncio para conferir não lista", () => {
     expect(motivoParaNaoListar(100, null, "estimado")).toMatch(/conferir/);
   });
+  it("preço ajustado (acima da mediana, perfil paciente) sem menor anúncio também não lista", () => {
+    expect(motivoParaNaoListar(100, null, "ajustado")).toMatch(/conferir/);
+    expect(motivoParaNaoListar(100, 95, "ajustado")).toBeNull();
+  });
   it("fora da faixa do menor anúncio não lista, qualquer que seja a fonte", () => {
     expect(motivoParaNaoListar(40, 100, "steam")).toMatch(/fora do mercado/);
     expect(motivoParaNaoListar(250, 100, "estimado")).toMatch(/fora do mercado/);

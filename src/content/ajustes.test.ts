@@ -41,9 +41,10 @@ describe("montarMenuAjustes (clique no logo)", () => {
     raiz.append(botao);
     document.body.append(raiz);
     const aoEscolher = vi.fn();
-    const menu = montarMenuAjustes(botao, raiz, { atual: () => "pt", aoEscolher });
+    const aoEscolherPerfil = vi.fn();
+    const menu = montarMenuAjustes(botao, raiz, { atual: () => "pt", aoEscolher, perfil: () => "paciente", aoEscolherPerfil });
     const el = () => raiz.querySelector(".sv-menu") as HTMLElement;
-    return { raiz, botao, aoEscolher, menu, el };
+    return { raiz, botao, aoEscolher, aoEscolherPerfil, menu, el };
   };
   it("começa fechado; o logo abre e marca aria-expanded", () => {
     const { botao, el } = montar();
@@ -60,6 +61,27 @@ describe("montarMenuAjustes (clique no logo)", () => {
     radios(el())[2]!.click();
     expect(aoEscolher).toHaveBeenCalledWith("es");
     expect(el().hidden).toBe(false);
+  });
+  it("perfil de venda: três opções, o padrão (paciente) marcado; escolher avisa e marca", () => {
+    const { botao, el, aoEscolherPerfil } = montar();
+    botao.click();
+    expect(el().textContent).toContain("Perfil de venda");
+    const perfis = () => [...el().querySelectorAll<HTMLButtonElement>(".sv-perfis [role=radio]")];
+    expect(perfis().map((b) => b.textContent)).toEqual(["Rápido", "Médio", "Paciente"]);
+    expect(perfis().map((b) => b.getAttribute("aria-checked"))).toEqual(["false", "false", "true"]);
+    perfis()[0]!.click();
+    expect(aoEscolherPerfil).toHaveBeenCalledWith("rapido");
+    expect(perfis().map((b) => b.getAttribute("aria-checked"))).toEqual(["true", "false", "false"]);
+    expect(el().hidden).toBe(false);
+  });
+  it("sem as opções de perfil, o menu só tem o idioma", () => {
+    const raiz = document.createElement("div");
+    const botao = document.createElement("button");
+    raiz.append(botao);
+    document.body.append(raiz);
+    montarMenuAjustes(botao, raiz, { atual: () => "pt", aoEscolher: vi.fn() });
+    botao.click();
+    expect(raiz.querySelector(".sv-perfis")).toBeNull();
   });
   it("Esc fecha e devolve o foco ao logo; clicar de novo no logo também fecha", () => {
     const { botao, el, menu } = montar();

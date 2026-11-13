@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { definirIdioma } from "../core/i18n.ts";
-import { acaoDoBotao, aplicarPrecos, idDoQuadrado, idsVisiveis, marcarGrupos, marcarListados, ordenarGrade, ordenarListados, type AcaoQuadrado } from "./overlay.ts";
+import { acaoDoBotao, aplicarPrecos, idDoQuadrado, idsVisiveis, marcarBaratos, marcarBons, marcarGrupos, marcarListados, ordenarGrade, ordenarListados, type AcaoQuadrado } from "./overlay.ts";
 
 function grade(...ids: string[]): void {
   document.body.innerHTML = `<div id="inventories">${ids.map((i) => `<div class="itemHolder"><div class="item" id="${i}"></div></div>`).join("")}</div>`;
@@ -319,5 +319,87 @@ describe("marcarListados em outro idioma", () => {
     marcarListados(document, new Map([["730_2_1", 3500], ["730_2_2", 100]]), (c) => `R$ ${c / 100}`, false, new Set(["730_2_2"]));
     expect(document.getElementById("730_2_1")!.querySelector(".sv-listado")!.textContent).toBe("Listed R$ 35");
     expect(document.getElementById("730_2_2")!.querySelector(".sv-listado")!.textContent).toBe("Needs approval");
+  });
+});
+
+describe("marcarBons (borda dourada e filtro dos bons negócios)", () => {
+  beforeEach(() => {
+    document.head.innerHTML = "";
+  });
+  const holder = (id: string) => document.getElementById(id)!.closest(".itemHolder")!;
+  it("borda dourada e dica com os motivos só nos itens bons", () => {
+    grade("730_2_1", "730_2_2");
+    marcarBons(document, new Map([["730_2_1", "Caiu 40% em 2 meses"]]), false);
+    const bom = document.getElementById("730_2_1")!;
+    expect(bom.classList.contains("sv-bom")).toBe(true);
+    expect(bom.title).toBe("Caiu 40% em 2 meses");
+    expect(document.getElementById("730_2_2")!.classList.contains("sv-bom")).toBe(false);
+  });
+  it("com o filtro ligado, quem não é bom some (sv-fora); desligado, tudo volta", () => {
+    grade("730_2_1", "730_2_2");
+    marcarBons(document, new Map([["730_2_1", "x"]]), true);
+    expect(holder("730_2_2").classList.contains("sv-fora")).toBe(true);
+    expect(holder("730_2_1").classList.contains("sv-fora")).toBe(false);
+    marcarBons(document, new Map([["730_2_1", "x"]]), false);
+    expect(holder("730_2_2").classList.contains("sv-fora")).toBe(false);
+  });
+  it("com o filtro ligado, item ainda sem análise (manter) continua à vista até o histórico chegar", () => {
+    grade("730_2_1", "730_2_2", "730_2_3");
+    marcarBons(document, new Map([["730_2_1", "x"]]), true, new Map(), new Set(["730_2_3"]));
+    expect(holder("730_2_1").classList.contains("sv-fora")).toBe(false);
+    expect(holder("730_2_2").classList.contains("sv-fora")).toBe(true);
+    expect(holder("730_2_3").classList.contains("sv-fora")).toBe(false);
+  });
+  it("item que deixou de ser bom perde a borda e a dica", () => {
+    grade("730_2_1");
+    marcarBons(document, new Map([["730_2_1", "x"]]), false);
+    marcarBons(document, new Map(), false);
+    const q = document.getElementById("730_2_1")!;
+    expect(q.classList.contains("sv-bom")).toBe(false);
+    expect(q.hasAttribute("title")).toBe(false);
+  });
+  it("a dica entra como texto (atributo), nunca como HTML", () => {
+    grade("730_2_1");
+    marcarBons(document, new Map([["730_2_1", "<img src=x onerror=alert(1)>"]]), false);
+    expect(document.getElementById("730_2_1")!.querySelector("img")).toBeNull();
+  });
+  it("repetir a mesma marcação não mexe no DOM", () => {
+    grade("730_2_1", "730_2_2");
+    marcarBons(document, new Map([["730_2_1", "x"]]), true);
+    const obs = new MutationObserver(() => undefined);
+    obs.observe(document.body, { childList: true, subtree: true, attributes: true });
+    marcarBons(document, new Map([["730_2_1", "x"]]), true);
+    expect(obs.takeRecords()).toHaveLength(0);
+    obs.disconnect();
+  });
+});
+
+describe("marcarBons: dica de itens que não são bons e cinza dos que não compensam", () => {
+  beforeEach(() => {
+    document.head.innerHTML = "";
+  });
+  it("item comum recebe a dica de taxa; o bom mantém a dele", () => {
+    grade("730_2_1", "730_2_2");
+    marcarBons(document, new Map([["730_2_1", "Bom"]]), false, new Map([["730_2_1", "ignorada"], ["730_2_2", "Recebe R$ 0,28 (taxa 30%)"]]));
+    expect(document.getElementById("730_2_1")!.title).toBe("Bom");
+    expect(document.getElementById("730_2_2")!.title).toBe("Recebe R$ 0,28 (taxa 30%)");
+    expect(document.getElementById("730_2_2")!.classList.contains("sv-bom")).toBe(false);
+  });
+  it("o title original da Steam é restaurado quando a dica da extensão some", () => {
+    grade("730_2_1");
+    const q = document.getElementById("730_2_1")!;
+    q.title = "original da Steam";
+    marcarBons(document, new Map(), false, new Map([["730_2_1", "Recebe R$ 0,28"]]));
+    expect(q.title).toBe("Recebe R$ 0,28");
+    marcarBons(document, new Map(), false);
+    expect(q.title).toBe("original da Steam");
+  });
+  it("sv-barato: cinza só nos itens passados", () => {
+    grade("730_2_1", "730_2_2");
+    marcarBaratos(document, new Set(["730_2_1"]));
+    expect(document.getElementById("730_2_1")!.classList.contains("sv-barato")).toBe(true);
+    expect(document.getElementById("730_2_2")!.classList.contains("sv-barato")).toBe(false);
+    marcarBaratos(document, new Set());
+    expect(document.getElementById("730_2_1")!.classList.contains("sv-barato")).toBe(false);
   });
 });

@@ -52,13 +52,34 @@ describe("chaveDeOrdem", () => {
   });
 });
 
+describe("chaveDeOrdem: só bons negócios", () => {
+  it("com o filtro, quem não é bom vai para o fim (1); os bons ficam (0)", () => {
+    const e = estado({ ordem: "steam", apenasBons: true, bons: new Set(["a"]) });
+    expect(chaveDeOrdem("a", e)).toEqual([0]);
+    expect(chaveDeOrdem("b", e)).toEqual([1]);
+  });
+  it("sem o filtro, ninguém é afetado", () => {
+    expect(chaveDeOrdem("b", estado({ ordem: "steam", bons: new Set(["a"]) }))).toEqual([0]);
+  });
+});
+
+describe("chaveDeOrdem: itens que não compensam", () => {
+  it("com o filtro, vão para o fim; sem o filtro, ninguém é afetado", () => {
+    const baratos = new Set(["a"]);
+    expect(chaveDeOrdem("a", estado({ ordem: "steam", ocultarBaratos: true, baratos }))).toEqual([1]);
+    expect(chaveDeOrdem("b", estado({ ordem: "steam", ocultarBaratos: true, baratos }))).toEqual([0]);
+    expect(chaveDeOrdem("a", estado({ ordem: "steam", baratos }))).toEqual([0]);
+  });
+});
+
 describe("proximoParaRefinar", () => {
   const g = (nome: string) => ({ nome });
-  it("pula quem já tem preço rápido (uma fonte só: ordem e preço batem) e quem já foi pedido", () => {
+  it("pula quem já foi pedido; o preço rápido (tabela em USD) não dispensa o histórico em BRL", () => {
     const grupos = [g("a"), g("b"), g("c")];
-    expect(proximoParaRefinar(grupos, new Set(["a"]), new Set(["b"]))?.nome).toBe("c");
+    expect(proximoParaRefinar(grupos, new Set(["a", "b"]))?.nome).toBe("c");
+    expect(proximoParaRefinar(grupos, new Set())?.nome).toBe("a");
   });
   it("sem nada a refinar, devolve undefined", () => {
-    expect(proximoParaRefinar([g("a")], new Set(), new Set(["a"]))).toBeUndefined();
+    expect(proximoParaRefinar([g("a")], new Set(["a"]))).toBeUndefined();
   });
 });

@@ -23,8 +23,35 @@ describe("renderControles", () => {
   it("clicar no ícone de ocultar listados avisa o novo estado", () => {
     const { botao, aoMudar } = montar();
     botao(".sv-ocultar-listados-btn").click();
-    expect(aoMudar).toHaveBeenLastCalledWith({ ocultarListados: false, ocultarNaoVendaveis: false, ordem: "steam", agrupar: false });
+    expect(aoMudar).toHaveBeenLastCalledWith({ ocultarListados: false, ocultarNaoVendaveis: false, ordem: "steam", agrupar: false, apenasBons: false, ocultarBaratos: false });
     expect(botao(".sv-ocultar-listados-btn").getAttribute("aria-pressed")).toBe("false");
+  });
+  it("filtro de itens que não compensam (taxa alta): começa desligado, liga e desliga, abre como salvo", () => {
+    const { botao, aoMudar } = montar();
+    const b = botao(".sv-baratos-btn");
+    expect(b.getAttribute("aria-pressed")).toBe("false");
+    expect(b.getAttribute("aria-label")).toBe("Ocultar itens que não compensam vender (taxa alta)");
+    b.click();
+    expect(aoMudar).toHaveBeenLastCalledWith(expect.objectContaining({ ocultarBaratos: true }));
+    expect(b.getAttribute("aria-pressed")).toBe("true");
+    const el = document.createElement("div");
+    document.body.append(el);
+    renderControles(el, { aoMudar: vi.fn() }, { ocultarBaratos: true });
+    expect(el.querySelector(".sv-baratos-btn")!.getAttribute("aria-pressed")).toBe("true");
+  });
+  it("filtro de bons negócios: ícone dourado, começa desligado, liga e desliga, abre como salvo", () => {
+    const { botao, aoMudar } = montar();
+    const b = botao(".sv-bons-btn");
+    expect(b.getAttribute("aria-pressed")).toBe("false");
+    expect(b.getAttribute("aria-label")).toBe("Mostrar só os bons negócios para vender agora");
+    expect(b.querySelector("svg")).not.toBeNull();
+    b.click();
+    expect(aoMudar).toHaveBeenLastCalledWith(expect.objectContaining({ apenasBons: true }));
+    expect(b.getAttribute("aria-pressed")).toBe("true");
+    const el = document.createElement("div");
+    document.body.append(el);
+    renderControles(el, { aoMudar: vi.fn() }, { apenasBons: true });
+    expect(el.querySelector(".sv-bons-btn")!.getAttribute("aria-pressed")).toBe("true");
   });
   it("filtro de Not Marketable: começa mostrando; o ícone liga e desliga; abre como salvo", () => {
     const { botao, aoMudar } = montar();
@@ -97,7 +124,7 @@ describe("renderControles: ícone de agrupar itens iguais", () => {
     expect(botao(el).getAttribute("aria-pressed")).toBe("false");
     botao(el).click();
     expect(botao(el).getAttribute("aria-pressed")).toBe("true");
-    expect(aoMudar).toHaveBeenLastCalledWith({ ocultarListados: true, ocultarNaoVendaveis: false, ordem: "steam", agrupar: true });
+    expect(aoMudar).toHaveBeenLastCalledWith({ ocultarListados: true, ocultarNaoVendaveis: false, ordem: "steam", agrupar: true, apenasBons: false, ocultarBaratos: false });
   });
   it("abre como salvo", () => {
     const el = document.createElement("div");
@@ -110,9 +137,9 @@ describe("renderControles: ícone de agrupar itens iguais", () => {
     const resumo = document.createElement("div");
     document.body.append(el, resumo);
     renderControles(el, { aoMudar: vi.fn() }, {}, { resumo });
-    // filtros (ocultar listados e Not Marketable) e, ao lado, agrupar e ordenar
+    // filtros (ocultar listados, Not Marketable e bons negócios) e, ao lado, agrupar e ordenar
     expect([...el.children].map((c) => c.className)).toEqual(["sv-filtros", "sv-ferramentas"]);
-    expect([...el.querySelector(".sv-filtros")!.children].map((c) => c.classList[1])).toEqual(["sv-ocultar-listados-btn", "sv-nao-vendaveis-btn"]);
+    expect([...el.querySelector(".sv-filtros")!.children].map((c) => c.classList[1])).toEqual(["sv-ocultar-listados-btn", "sv-nao-vendaveis-btn", "sv-baratos-btn", "sv-bons-btn"]);
     const linha = el.querySelector(".sv-ferramentas") as HTMLElement;
     expect(linha.querySelector(".sv-agrupar-btn")).not.toBeNull();
     expect(linha.querySelector(".sv-ordem-btn")).not.toBeNull();

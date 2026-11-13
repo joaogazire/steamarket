@@ -45,15 +45,15 @@ export function foraDoMercado(precoComprador: number, menorAnuncio: number | nul
   return precoComprador < menorAnuncio * 0.5 || precoComprador > menorAnuncio * 2;
 }
 
-/** De onde veio o preço: histórico da própria Steam ou estimativa de terceiros (csgotrader). */
-export type FontePreco = "steam" | "estimado";
+/** De onde veio o preço: histórico da Steam (mediana), histórico com ajuste acima da mediana (perfil paciente) ou estimativa de terceiros (csgotrader). */
+export type FontePreco = "steam" | "estimado" | "ajustado";
 
 /**
  * Trava antes de listar: o preço tem de estar perto do menor anúncio atual da Steam.
- * Sem menor anúncio para comparar, só o preço vindo da Steam passa; a estimativa de terceiros não.
+ * Sem menor anúncio para comparar, só o preço da mediana da Steam passa; a estimativa de terceiros e o preço ajustado acima da mediana não.
  */
 export function motivoParaNaoListar(precoComprador: number, menorAnuncio: number | null, fonte: FontePreco): string | null {
   const temMenor = menorAnuncio !== null && Number.isSafeInteger(menorAnuncio) && menorAnuncio > 0;
-  if (!temMenor) return fonte === "estimado" ? tx().semAnuncioParaConferir : null;
+  if (!temMenor) return fonte === "steam" ? null : tx().semAnuncioParaConferir;
   return foraDoMercado(precoComprador, menorAnuncio) ? tx().foraDoMercado : null;
 }

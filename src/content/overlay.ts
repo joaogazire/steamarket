@@ -3,7 +3,11 @@ import { tx } from "../core/i18n.ts";
 const ID_ESTILO = "sv-estilo-overlay";
 const FONTE = `600 11px/15px "Motiva Sans", Arial, sans-serif`;
 // Quadrado: seleção ↖, preço ↗, quantidade ↙, Listar ↘.
-const CSS = `.itemHolder.sv-oculto, .itemHolder.sv-agrupado { display: none !important; }
+const CSS = `.itemHolder.sv-oculto, .itemHolder.sv-agrupado, .itemHolder.sv-fora { display: none !important; }
+.item.sv-bom { box-shadow: inset 0 0 0 2px #f5c842, inset 0 0 16px rgba(245,200,66,.28), 0 0 11px rgba(245,200,66,.65); }
+.item.sv-barato { opacity: .72; }
+.item.sv-barato .sv-preco-item { color: #8f98a0; }
+.item.sv-bom .sv-preco-item { color: #f5c842; background: rgba(40,30,4,.88); }
 .item .sv-preco-item, .item .sv-qtd { position: absolute; z-index: 5; padding: 1px 5px; border-radius: 4px; background: rgba(14,20,27,.82); font: ${FONTE}; font-variant-numeric: tabular-nums; pointer-events: none; transition: opacity .25s; }
 .item .sv-preco-item { right: 3px; top: 3px; color: #a4d007; }
 .item .sv-preco-item.sv-listado { color: #66c0f4; }
@@ -243,3 +247,49 @@ export function marcarGrupos(doc: Document, quantidades: Map<string, number>, co
   }
 }
 
+
+/** Itens que não compensam vender agora (taxa alta): cinza no quadrado. Só mexe no DOM se algo muda. */
+export function marcarBaratos(doc: Document, baratos: Set<string>): void {
+  garantirEstilo(doc);
+  for (const q of doc.querySelectorAll<HTMLElement>("#inventories .item")) {
+    if (!/^\d{1,7}_\d{1,3}_\d{1,20}$/.test(q.id)) continue;
+    const sim = baratos.has(q.id);
+    if (q.classList.contains("sv-barato") !== sim) q.classList.toggle("sv-barato", sim);
+  }
+}
+
+/**
+ * Bons negócios para vender agora: borda dourada fina e dica com os motivos. `bons`: id do quadrado → dica.
+ * Com `soBons`, os quadrados que não são bons somem (sv-fora). Só mexe no DOM se algo muda.
+ */
+export function marcarBons(
+  doc: Document,
+  bons: Map<string, string>,
+  soBons: boolean,
+  outras: Map<string, string> = new Map(),
+  /** itens ainda sem análise (histórico a caminho): ficam à vista mesmo com o filtro ligado */
+  manter: Set<string> = new Set(),
+): void {
+  garantirEstilo(doc);
+  for (const q of doc.querySelectorAll<HTMLElement>("#inventories .item")) {
+    if (!/^\d{1,7}_\d{1,3}_\d{1,20}$/.test(q.id)) continue;
+    const dica = bons.get(q.id);
+    const bom = dica !== undefined;
+    if (q.classList.contains("sv-bom") !== bom) q.classList.toggle("sv-bom", bom);
+    // dica própria: a do bom negócio ou, nos demais itens, a de `outras` (quanto recebe e a taxa).
+    // O title que a Steam já tinha é guardado e volta quando a nossa dica some.
+    const texto = dica ?? outras.get(q.id);
+    if (texto !== undefined) {
+      if (q.dataset.svTitulo === undefined) q.dataset.svTitulo = q.getAttribute("title") ?? "\u0000";
+      if (q.title !== texto) q.title = texto;
+    } else if (q.dataset.svTitulo !== undefined) {
+      const original = q.dataset.svTitulo;
+      if (original === "\u0000") q.removeAttribute("title");
+      else q.title = original;
+      delete q.dataset.svTitulo;
+    }
+    const suporte = q.closest(".itemHolder");
+    const fora = soBons && !bom && !manter.has(q.id);
+    if (suporte && suporte.classList.contains("sv-fora") !== fora) suporte.classList.toggle("sv-fora", fora);
+  }
+}

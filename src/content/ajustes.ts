@@ -3,6 +3,7 @@
  * e na página de configurações (ícone da extensão / about:addons).
  */
 import { IDIOMAS, tx, type Idioma } from "../core/i18n.ts";
+import { PERFIS, type Perfil } from "../core/preco-paciente.ts";
 
 /** Grupo de opções de idioma (radiogroup com setas do teclado). */
 export function renderSeletorIdioma(el: HTMLElement, atual: Idioma, aoEscolher: (i: Idioma) => void): void {
@@ -48,6 +49,50 @@ export function renderSeletorIdioma(el: HTMLElement, atual: Idioma, aoEscolher: 
   el.replaceChildren(grupo);
 }
 
+/** Perfil de venda (rápido / médio / paciente): radiogroup com setas do teclado. */
+export function renderSeletorPerfil(el: HTMLElement, atual: Perfil, aoEscolher: (p: Perfil) => void): void {
+  const doc = el.ownerDocument;
+  const nomes: Record<Perfil, string> = { rapido: tx().perfilRapido, medio: tx().perfilMedio, paciente: tx().perfilPaciente };
+  const grupo = doc.createElement("div");
+  grupo.className = "sv-idiomas sv-perfis";
+  grupo.setAttribute("role", "radiogroup");
+  grupo.setAttribute("aria-label", tx().perfilVenda);
+  grupo.title = tx().perfilDica;
+  const botoes = PERFIS.map((id) => {
+    const b = doc.createElement("button");
+    b.type = "button";
+    b.className = "sv-idioma";
+    b.setAttribute("role", "radio");
+    b.dataset.perfil = id;
+    b.textContent = nomes[id];
+    return b;
+  });
+  const marcar = (p: Perfil) => {
+    for (const b of botoes) {
+      const sim = b.dataset.perfil === p;
+      b.setAttribute("aria-checked", String(sim));
+      b.tabIndex = sim ? 0 : -1;
+    }
+  };
+  const escolher = (p: Perfil, focar = false) => {
+    marcar(p);
+    if (focar) botoes.find((b) => b.dataset.perfil === p)?.focus();
+    aoEscolher(p);
+  };
+  botoes.forEach((b, n) => {
+    b.addEventListener("click", () => escolher(b.dataset.perfil as Perfil));
+    b.addEventListener("keydown", (e) => {
+      const passo = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+      if (!passo) return;
+      e.preventDefault();
+      escolher(PERFIS[(n + passo + PERFIS.length) % PERFIS.length] as Perfil, true);
+    });
+  });
+  marcar(atual);
+  grupo.append(...botoes);
+  el.replaceChildren(grupo);
+}
+
 export interface MenuAjustes {
   fechar(): void;
 }
@@ -56,7 +101,7 @@ export interface MenuAjustes {
 export function montarMenuAjustes(
   botao: HTMLElement,
   raiz: HTMLElement | ShadowRoot,
-  op: { atual: () => Idioma; aoEscolher: (i: Idioma) => void; rodape?: string },
+  op: { atual: () => Idioma; aoEscolher: (i: Idioma) => void; perfil?: () => Perfil; aoEscolherPerfil?: (p: Perfil) => void; rodape?: string },
 ): MenuAjustes {
   const doc = botao.ownerDocument;
   const menu = doc.createElement("div");
@@ -77,9 +122,22 @@ export function montarMenuAjustes(
       op.aoEscolher(i);
       // os rótulos do menu acompanham a troca; o foco fica na opção escolhida
       titulo.textContent = tx().idioma;
+      if (op.perfil && op.aoEscolherPerfil) {
+        preencher(); // o título e as opções do perfil também trocam de idioma
+        menu.querySelector<HTMLElement>("[aria-checked=true]")?.focus();
+      }
       menu.setAttribute("aria-label", tx().configuracoes);
     });
     menu.replaceChildren(titulo, seletor);
+    if (op.perfil && op.aoEscolherPerfil) {
+      const aoPerfil = op.aoEscolherPerfil;
+      const tituloPerfil = doc.createElement("div");
+      tituloPerfil.className = "sv-menu-titulo";
+      tituloPerfil.textContent = tx().perfilVenda;
+      const seletorPerfil = doc.createElement("div");
+      renderSeletorPerfil(seletorPerfil, op.perfil(), aoPerfil);
+      menu.append(tituloPerfil, seletorPerfil);
+    }
     if (op.rodape) {
       const rodape = doc.createElement("div");
       rodape.className = "sv-menu-rodape";

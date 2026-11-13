@@ -51,6 +51,7 @@
 .sv-icone svg { display: block; transition: transform .3s var(--suave), opacity .2s; }
 .sv-ordem-btn[data-ordem="steam"] .sv-seta { opacity: .35; }
 .sv-ordem-btn[data-ordem="menor"] .sv-seta { transform: rotate(180deg); }
+.sv-bons-btn[aria-pressed="true"] { background: rgba(217, 180, 74, .16); color: #e6c35c; }
 @keyframes sv-pop { 0% { transform: scale(.7); } 100% { transform: scale(1); } }
 
 /* Logo: botão das configurações */
@@ -120,6 +121,13 @@
 .sv-total { white-space: nowrap; font-variant-numeric: tabular-nums; padding-right: 2px; transition: opacity .3s var(--suave), display .3s allow-discrete; }
 .sv-total[hidden] { display: none; opacity: 0; }
 @starting-style { .sv-total { opacity: 0; } }
+.sv-anel { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; vertical-align: middle; color: var(--mudo); font-size: 11px; font-weight: 600; }
+.sv-anel[hidden] { display: none; }
+.sv-anel::after { content: attr(data-pct); font-variant-numeric: tabular-nums; }
+.sv-anel svg { transform: rotate(-90deg); }
+.sv-anel circle { fill: none; stroke-width: 2.5; stroke-linecap: round; }
+.sv-anel-fundo { stroke: var(--linha); }
+.sv-anel-arco { stroke: var(--verde); transition: stroke-dasharray .4s var(--suave); }
 .sv-total strong { display: inline-block; color: var(--verde); font-weight: 600; }
 
 /* Barra de seleção: quantos, valor, quanto recebe e o Listar no fim */

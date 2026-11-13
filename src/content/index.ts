@@ -1,11 +1,14 @@
 /** Ponto de entrada do content script: preço sugerido em cada quadrado do inventário e venda com um clique. */
 import type { Resposta } from "../background/roteador.ts";
 import { agrupar } from "../core/agrupar.ts";
-import { motivoParaNaoListar, sugerir, type FontePreco } from "../core/sugestao.ts";
+import { motivoParaNaoListar, type FontePreco } from "../core/sugestao.ts";
 import { liquido as liquidoDe, menorTotal } from "../core/taxas.ts";
 import { reais, somarTotal } from "../core/total.ts";
 import { definirIdioma, idioma, lerIdioma, tx, type Idioma } from "../core/i18n.ts";
 import { montarMenuAjustes } from "./ajustes.ts";
+import { naoCompensa, taxaEfetiva } from "../core/compensa.ts";
+import { lerPerfil, precoPaciente, type Perfil } from "../core/preco-paciente.ts";
+import { avaliarMomento, descreverMotivos, type Veredito } from "../core/momento-venda.ts";
 
 declare const __BUILD__: string | undefined;
 import type { Ativo, Grupo, Ponto } from "../core/tipos.ts";
@@ -13,7 +16,7 @@ import { lerOrdem, renderControles, type OpcoesPainel, type Ordem } from "./cont
 import { lerAppDaPagina, lerContexto } from "./contexto.ts";
 import cssPainel from "./estilo.css";
 import { esperarInventarioDaPagina } from "./inventario-pagina.ts";
-import { acaoDoBotao, aplicarPrecos, idsVisiveis, marcarGrupos, marcarListados, ordenarGrade, type AcaoQuadrado } from "./overlay.ts";
+import { acaoDoBotao, aplicarPrecos, idsVisiveis, marcarBaratos, marcarBons, marcarGrupos, marcarListados, ordenarGrade, type AcaoQuadrado } from "./overlay.ts";
 import { montarPainel, posicionar } from "./painel.ts";
 import { chaveDeOrdem as chaveOrdem, fotografarPrecos, proximoParaRefinar } from "./ordem.ts";
 import { criarTodasPaginas, recarregarImagens } from "./paginas-steam.ts";
@@ -63,25 +66,31 @@ async function principal(): Promise<void> {
   let ordemSalva: Ordem = "steam";
   let agruparSalvo = false;
   let naoVendaveisSalvo = false;
+  let apenasBonsSalvo = false;
+  let baratosSalvo = false;
+  let perfil: Perfil = lerPerfil(undefined);
   try {
-    const salvo = await browser.storage.local.get(["ordem", "agrupar", "ocultarNaoVendaveis", "idioma"]);
+    const salvo = await browser.storage.local.get(["ordem", "agrupar", "ocultarNaoVendaveis", "apenasBons", "ocultarBaratos", "idioma", "perfil"]);
     definirIdioma(lerIdioma(salvo.idioma, browser.i18n.getUILanguage()));
     ordemSalva = lerOrdem(salvo.ordem);
     agruparSalvo = salvo.agrupar === true;
     naoVendaveisSalvo = salvo.ocultarNaoVendaveis === true;
+    apenasBonsSalvo = salvo.apenasBons === true;
+    baratosSalvo = salvo.ocultarBaratos === true;
+    perfil = lerPerfil(salvo.perfil);
   } catch {
     /* sem storage: começa no padrão */
   }
-  let opcoes: OpcoesPainel = { ocultarListados: true, ocultarNaoVendaveis: naoVendaveisSalvo, ordem: ordemSalva, agrupar: agruparSalvo };
+  let opcoes: OpcoesPainel = { ocultarListados: true, ocultarNaoVendaveis: naoVendaveisSalvo, ordem: ordemSalva, agrupar: agruparSalvo, apenasBons: apenasBonsSalvo, ocultarBaratos: baratosSalvo };
   painel.atualizarTextos();
   const criarControles = () => renderControles(
     painel.conteudo,
     {
       aoListarSelecionados: () => void listarSelecionados(),
       aoMudar: (o) => {
-        if (o.ordem !== opcoes.ordem || o.agrupar !== opcoes.agrupar || o.ocultarNaoVendaveis !== opcoes.ocultarNaoVendaveis) {
+        if (o.ordem !== opcoes.ordem || o.agrupar !== opcoes.agrupar || o.ocultarNaoVendaveis !== opcoes.ocultarNaoVendaveis || o.apenasBons !== opcoes.apenasBons || o.ocultarBaratos !== opcoes.ocultarBaratos) {
           browser.storage.local
-            .set({ ordem: o.ordem, agrupar: o.agrupar, ocultarNaoVendaveis: o.ocultarNaoVendaveis })
+            .set({ ordem: o.ordem, agrupar: o.agrupar, ocultarNaoVendaveis: o.ocultarNaoVendaveis, apenasBons: o.apenasBons, ocultarBaratos: o.ocultarBaratos })
             .catch(() => undefined);
         }
         opcoes = o;
@@ -107,6 +116,12 @@ async function principal(): Promise<void> {
     aoEscolher: (i) => {
       aplicarIdioma(i);
       browser.storage.local.set({ idioma: i }).catch(() => undefined);
+    },
+    perfil: () => perfil,
+    aoEscolherPerfil: (p) => {
+      perfil = p;
+      browser.storage.local.set({ perfil: p }).catch(() => undefined);
+      repreciar();
     },
     rodape: typeof __BUILD__ === "string" ? `steamarket · build ${__BUILD__}` : "steamarket",
   });
@@ -150,7 +165,7 @@ async function principal(): Promise<void> {
     posicionar(painel!.el, document);
     // A Steam cria as páginas da grade sob demanda; para mandar os listados ao fim, todas precisam existir.
     const inv = pagina!.g_ActiveInventory;
-    const mexeNaGrade = opcoes.ocultarListados || opcoes.ocultarNaoVendaveis || opcoes.ordem !== "steam" || opcoes.agrupar;
+    const mexeNaGrade = opcoes.ocultarListados || opcoes.ocultarNaoVendaveis || opcoes.ordem !== "steam" || opcoes.agrupar || opcoes.apenasBons || opcoes.ocultarBaratos;
     if (mexeNaGrade && inventarioCompleto) {
       // uma vez por inventário (ou quando a Steam muda o número de páginas), não a cada reaplicar
       const nPaginas = (inv as { m_rgPages?: unknown[] } | undefined)?.m_rgPages?.length ?? -1;
@@ -166,6 +181,12 @@ async function principal(): Promise<void> {
     document.documentElement.classList.toggle("sv-selecionando", nSel > 0);
     controles.selecao(nSel, lote ? { feitos: lote.feitos, total: lote.total } : undefined);
     marcarListados(document, listados, formatar, false, aguardando);
+    const av = avaliarGrade(); // uma vez por reaplicar (a chave de ordem consulta por item)
+    bonsAtuais = av.bons;
+    baratosAtuais = av.baratos;
+    pendentesAtuais = pendentesDeAnalise();
+    marcarBons(document, av.bons, opcoes.apenasBons, av.outras, pendentesAtuais);
+    marcarBaratos(document, av.baratos);
     mostrarTotal();
     if (ordenarGrade(document, chaveDeOrdem)) {
       suavizarGrade();
@@ -174,10 +195,45 @@ async function principal(): Promise<void> {
     }
   }
 
+  /** nome do item → veredito "bom momento para vender" (só os bons); calculado do histórico que já foi baixado */
+  const bonsPorNome = new Map<string, Veredito>();
+  let bonsAtuais = new Map<string, string>();
+  let baratosAtuais = new Set<string>();
+  let pendentesAtuais = new Set<string>();
+  /** quadrados cujo histórico ainda não chegou: o filtro "só bons" não os esconde antes de analisar */
+  const pendentesDeAnalise = (): Set<string> =>
+    new Set([...porQuadrado].filter(([id, q]) => !listados.has(id) && !concluidos.has(q.grupo.nome)).map(([id]) => id));
+  /**
+   * Avaliação de cada quadrado ainda não listado e com preço: dica com o que recebe e a taxa; "barato" (taxa alta,
+   * preço abaixo do limite, só em BRL) e "bom negócio" (borda dourada; item que não compensa nunca é bom).
+   */
+  function avaliarGrade(): { bons: Map<string, string>; baratos: Set<string>; outras: Map<string, string> } {
+    const bons = new Map<string, string>();
+    const baratos = new Set<string>();
+    const outras = new Map<string, string>();
+    for (const [id, q] of porQuadrado) {
+      if (listados.has(id) || q.preco === null) continue;
+      let linha = "";
+      try {
+        linha = tx().recebeTaxa(formatar(liquidoDe(q.preco, ctx!.regra)), Math.round(taxaEfetiva(q.preco, ctx!.regra) * 100));
+      } catch {
+        /* preço que a Steam não aceitaria: sem a linha de taxa */
+      }
+      // a estimativa em USD do CS2 (antes do histórico em BRL) não decide se compensa
+      const barato = ctx!.moeda === MOEDA_SUPORTADA && q.fonte !== "estimado" && naoCompensa(q.preco);
+      if (barato) baratos.add(id);
+      const v = bonsPorNome.get(q.grupo.nome);
+      if (v && !barato) bons.set(id, [descreverMotivos(v.motivos), linha].filter(Boolean).join("\n"));
+      else outras.set(id, [linha, barato ? tx().taxaAltaDica : ""].filter(Boolean).join("\n"));
+    }
+    return { bons, baratos, outras };
+  }
+
   /** Total sugerido no fim do painel: itens ainda não listados, pelo preço mostrado na grade. */
   function mostrarTotal(): void {
     if (!inventarioCompleto) return controles.total(null);
-    const precos = [...porQuadrado].filter(([id]) => !listados.has(id)).map(([, q]) => q.preco);
+    // Só conta o preço depois do histórico em BRL; antes disso o CS2 tem só a estimativa em USD convertido.
+    const precos = [...porQuadrado].filter(([id]) => !listados.has(id)).map(([, q]) => (concluidos.has(q.grupo.nome) ? q.preco : null));
     const liq = (c: number) => liquidoDe(c, ctx!.regra);
     controles.total(somarTotal(precos, liq));
     controles.totalSelecionados(somarTotal(selecionaveis().map((id) => porQuadrado.get(id)?.preco ?? null), liq));
@@ -198,6 +254,10 @@ async function principal(): Promise<void> {
       listados,
       aguardando,
       precos: precosOrdem,
+      apenasBons: opcoes.apenasBons,
+      bons: { has: (id: string) => bonsAtuais.has(id) || pendentesAtuais.has(id) },
+      ocultarBaratos: opcoes.ocultarBaratos,
+      baratos: baratosAtuais,
     });
 
   /** A grade mudou de ordem: um fade curto em vez de um salto seco (respeita "reduzir movimento"). */
@@ -270,7 +330,9 @@ async function principal(): Promise<void> {
     porQuadrado.clear();
     naoVendaveis.clear();
     refinados.clear();
-    comPrecoRapido.clear();
+    concluidos.clear();
+    historicos.clear();
+    bonsPorNome.clear();
     inventarioCompleto = false;
     controles.status(""); // o carregamento não aparece na tela; o status só mostra erro
     // A página da Steam já tem o inventário (e marca o que está à venda); pedir de novo dava 500.
@@ -302,7 +364,6 @@ async function principal(): Promise<void> {
         const p = Object.hasOwn(precos, g.nome) ? precos[g.nome] : undefined;
         if (typeof p === "number") {
           definirPreco(g, p, "estimado");
-          comPrecoRapido.add(g.nome);
         }
       }
       congelarOrdem(); // ordena tudo uma vez, já pelo preço
@@ -331,8 +392,23 @@ async function principal(): Promise<void> {
 
   /** nomes cujo histórico da Steam já foi pedido nesta carga */
   const refinados = new Set<string>();
-  /** nomes com preço rápido (CS2): não passam pelo histórico, para a grade mostrar e ordenar pela mesma fonte */
-  const comPrecoRapido = new Set<string>();
+  /** histórico de cada item já refinado: ao trocar o perfil de venda, os preços se refazem sem pedir de novo */
+  const historicos = new Map<string, Ponto[]>();
+
+  /** Perfil trocado: refaz o preço de todos os itens que já têm histórico e reordena. */
+  function repreciar(): void {
+    const grupos = new Set([...porQuadrado.values()].map((q) => q.grupo));
+    for (const g of grupos) {
+      const h = historicos.get(g.nome);
+      const s = h ? precoPaciente(h, Date.now(), perfil) : null;
+      if (s) definirPreco(g, s.preco, s.q > 0.5 ? "ajustado" : "steam");
+    }
+    congelarOrdem();
+    reaplicar();
+  }
+
+  /** nomes cujo histórico (BRL) já chegou ou não existe; só esses entram no total (a tabela do CS2 é estimativa em USD) */
+  const concluidos = new Set<string>();
   let refinando = false;
 
   /** Refina pelo histórico da Steam os itens da página visível da grade; ao trocar de página, segue pelos novos. */
@@ -344,8 +420,10 @@ async function principal(): Promise<void> {
         const meu = seqCarregar;
         const jogoId = painel!.jogoAtual();
         if (!inventarioCompleto || !jogoId) return;
+        // Primeiro a página que está na tela; depois todos os outros grupos, para o total cobrir o inventário inteiro.
         const daPagina = [...new Set(idsVisiveis(document).flatMap((id) => porQuadrado.get(id)?.grupo ?? []))];
-        const g = proximoParaRefinar(daPagina, refinados, comPrecoRapido);
+        const todosGrupos = [...new Set([...porQuadrado.values()].map((q) => q.grupo))];
+        const g = proximoParaRefinar([...daPagina, ...todosGrupos], refinados);
         if (!g) return;
         refinados.add(g.nome);
         const r = await enviar({ tipo: "historico", appid: String(g.appid), nome: g.nome, grupoId: jogoId });
@@ -356,11 +434,19 @@ async function principal(): Promise<void> {
             controles.status(mensagemDe(r));
             return;
           }
+          reaplicar(); // sem histórico por erro: fica de fora do total (não conta a estimativa em USD)
           continue;
         }
-        const s = sugerir("equilibrado", { historico: r.dados as Ponto[], maiorOrdemCompra: null, menorAnuncio: null });
-        if (s.preco === null) continue;
-        definirPreco(g, s.preco, "steam");
+        concluidos.add(g.nome);
+        const analise = avaliarMomento(r.dados as Ponto[], Date.now());
+        if (analise?.bom) bonsPorNome.set(g.nome, analise);
+        historicos.set(g.nome, r.dados as Ponto[]);
+        const s = precoPaciente(r.dados as Ponto[], Date.now(), perfil);
+        if (!s) {
+          reaplicar(); // sem histórico: fica a estimativa e o total passa a contá-la
+          continue;
+        }
+        definirPreco(g, s.preco, s.q > 0.5 ? "ajustado" : "steam");
         reaplicar();
       }
     } finally {
