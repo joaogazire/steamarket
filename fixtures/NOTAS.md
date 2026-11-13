@@ -37,3 +37,22 @@ unset STEAM_COOKIE
 Copie os cookies do Firefox (Ferramentas do desenvolvedor, Armazenamento). Eles ficam só no ambiente do comando.
 As respostas vão para `fixtures/privado/` (fora do git, permissão 600) e o ritmo observado fica em `captura.log`.
 Para versionar algo em `fixtures/real/`, troque antes o steamid e os assetids por valores fictícios.
+
+## Captura real de 11/11/2026 (CS2, 730/2, conta BRL)
+
+Confirmado com respostas reais (fixtures/privado/, fora do git):
+- Inventário: `assets` + `descriptions` (+ `asset_properties`, `total_inventory_count`); 308 itens em 1 página com count=2000, sem `more_items`.
+- `pricehistory`: `prices` = [data "Mar 31 2025 01: +0", preço número, volume string]; início diário, últimas semanas por hora. `parseHistorico` e `medianaUltimas` rodam nos 3 itens reais (amostra 50).
+- `priceoverview`: `volume` vem com separador de milhar ("51,323"); preço "R$ 0,18" parseia certo.
+- Ritmo: 200 em 280–850 ms com ~4 s entre pedidos. Depois de ~12 pedidos seguidos, a página de listagem respondeu 429 (limite agressivo nela).
+
+Não confirmado:
+- `item_nameid`: `/market/listings/730/<item>` respondeu **302** nos 3 itens (redirect manual, sem seguir) e, em nova tentativa, 429. A origem do 302 e o formato da página ficam abertos; ordens (maior ordem de compra) dependem disso.
+- `sellitem` (Referer, formato do preço líquido) e o limite real de requisições seguem sem teste.
+
+## `/market/mylistings/?start=0&count=100` (real, 11/11/2026)
+JSON: `success`, `pagesize`, `total_count`, `start`, `assets{appid{contextid{assetid:{id,...}}}}`, `hovers` (texto JS com
+`CreateItemHoverFromContainer( g_rgAssets, 'mylisting_<listingid>_name', <appid>, '<ctx>', '<assetid>', 1 )`) e `results_html`
+(preço que o comprador paga no `<span title="This is the price the buyer pays.">`). Os itens listados NÃO vêm em
+`/inventory/` (308 vs 441 na aba), mas aparecem na grade da página com o assetid do anúncio.
+`fixtures/real/mylistings-estrutura.json` tem a mesma estrutura com ids e preços fictícios.

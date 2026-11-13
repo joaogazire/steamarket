@@ -19,3 +19,8 @@ declare module "*.css" {
   const conteudo: string;
   export default conteudo;
 }
+
+declare module "*.png" {
+  const url: string;
+  export default url;
+}

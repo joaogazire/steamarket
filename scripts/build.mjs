@@ -7,6 +7,7 @@ const watch = process.argv.includes("--watch");
 rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist", { recursive: true });
 cpSync("manifest.json", "dist/manifest.json");
+cpSync("icons", "dist/icons", { recursive: true });
 
 const base = {
   bundle: true,
@@ -14,7 +15,8 @@ const base = {
   target: "firefox115",
   sourcemap: false,
   logLevel: "info",
-  loader: { ".css": "text" },
+  loader: { ".css": "text", ".png": "dataurl" },
+  define: { __BUILD__: JSON.stringify(new Date().toTimeString().slice(0, 5)) },
 };
 
 const entradas = [

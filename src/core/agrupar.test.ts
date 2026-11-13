@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agrupar } from "./agrupar.ts";
+import { agrupar, ordenarPelaGrade } from "./agrupar.ts";
 import type { Ativo } from "./tipos.ts";
 
 const a = (assetid: string, nome: string, marketable = true): Ativo => ({
@@ -25,5 +25,21 @@ describe("agrupar INV-01 / INV-03", () => {
   });
   it("lista vazia dá lista vazia", () => {
     expect(agrupar([])).toEqual([]);
+  });
+});
+
+describe("ordenarPelaGrade", () => {
+  const at = (id: string, nome: string) => ({ assetid: id, appid: 730, contextid: "2", market_hash_name: nome, marketable: true });
+  it("ordena os grupos pela posição do primeiro ativo na grade do inventário", () => {
+    const ativos = [at("1", "B"), at("2", "A"), at("3", "A"), at("4", "C")];
+    const grupos = agrupar(ativos); // A (×2) vem primeiro por contagem
+    expect(ordenarPelaGrade(grupos, ativos).map((g) => g.nome)).toEqual(["B", "A", "C"]);
+  });
+  it("não altera a lista original", () => {
+    const ativos = [at("1", "B"), at("2", "A")];
+    const grupos = agrupar(ativos);
+    const antes = grupos.map((g) => g.nome);
+    ordenarPelaGrade(grupos, ativos);
+    expect(grupos.map((g) => g.nome)).toEqual(antes);
   });
 });

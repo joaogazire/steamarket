@@ -1,6 +1,7 @@
-import { historico, inventario, itemNameId, ordens, vender, visaoGeral } from "../steam/cliente.ts";
+import { anuncios, historico, inventario, itemNameId, ordens, vender, visaoGeral } from "../steam/cliente.ts";
 import { abrirCache } from "./cache.ts";
 import { criarFila } from "./fila.ts";
+import { baixarTabela } from "./precos-massa.ts";
 import { iniciarLote, validarPedidoLote, type Lote } from "./venda-lote.ts";
 import { criarRoteador } from "./roteador.ts";
 
@@ -24,7 +25,9 @@ const roteadorPronto = abrirCache("steam-vendas").then((cache) =>
       visaoGeral: (appid, nome, moeda) => visaoGeral(f, appid, nome, moeda),
       ordens: (nameId, moeda, pais) => ordens(f, nameId, moeda, pais),
       itemNameId: (appid, nome) => itemNameId(f, appid, nome),
+      anuncios: (appid, start) => anuncios(f, appid, start),
     },
+    precosMassa: () => baixarTabela(f),
   }),
 );
 

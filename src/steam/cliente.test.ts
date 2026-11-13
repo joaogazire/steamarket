@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { ErroLimite } from "../background/fila.ts";
 import {
-  ErroFormato, ErroRede, ErroSessao, historico, inventario, itemNameId, ordens, textoParaCentavos, vender, visaoGeral,
+  ErroFormato, ErroRede, ErroSessao, anuncios, historico, inventario, itemNameId, ordens, textoParaCentavos, vender, visaoGeral,
 } from "./cliente.ts";
 
 const ler = (c: string) => readFileSync(c, "utf8");
@@ -121,6 +121,18 @@ describe("vender", () => {
   });
 });
 
+describe("vender: erro HTTP com motivo da Steam (venda real 11/11/2026 deu 400)", () => {
+  const ctx = { sessionid: "abc123", steamid: "76561198000000000" };
+  const ativo = { assetid: "100", appid: 730, contextid: "2", market_hash_name: "x", marketable: true };
+  it("400 com JSON de recusa devolve o motivo em vez de erro genérico", async () => {
+    const r = await vender(fetcher(resp({ success: false, message: "There was a problem listing your item." }, 400)), ctx, ativo, 500);
+    expect(r).toEqual({ ok: false, motivo: "There was a problem listing your item. (status 400)" });
+  });
+  it("400 sem corpo legível continua ErroFormato com o status", async () => {
+    await expect(vender(fetcher(resp("null", 400)), ctx, ativo, 500)).rejects.toThrow("status 400");
+  });
+});
+
 describe("vender: faixa de preço", () => {
   it("recusa preço acima do teto sem enviar", async () => {
     const f = fetcher();
@@ -128,5 +140,51 @@ describe("vender: faixa de preço", () => {
     const ativo = { assetid: "100", appid: 730, contextid: "2", market_hash_name: "x", marketable: true };
     await expect(vender(f, ctx, ativo, 10_000_001)).rejects.toThrow("faixa");
     expect(f).not.toHaveBeenCalled();
+  });
+});
+
+describe("anuncios (/market/mylistings, formato real de 11/11/2026)", () => {
+  it("devolve, por id de quadrado appid_contexto_assetid, o preço anunciado em centavos", async () => {
+    const r = await anuncios(fetcher(json("fixtures/real/mylistings-estrutura.json")), "730", 0);
+    expect(r.total).toBe(3);
+    expect(r.itens).toEqual({ "730_2_900000001": 3500, "730_2_900000002": 123450 });
+  });
+  it("só inclui o app pedido", async () => {
+    const r = await anuncios(fetcher(json("fixtures/real/mylistings-estrutura.json")), "753", 0);
+    expect(r.itens).toEqual({ "753_6_900000003": 7 });
+  });
+  it("sem preço legível, o item continua listado com preço null", async () => {
+    const d = JSON.parse(readFileSync("fixtures/real/mylistings-estrutura.json", "utf8"));
+    d.results_html = "<div id=\"mylisting_111\">sem preço</div>";
+    const r = await anuncios(fetcher(resp(JSON.stringify(d))), "730", 0);
+    expect(r.itens["730_2_900000001"]).toBeNull();
+  });
+  it("sem login (400) vira ErroSessao; sem success vira ErroFormato; parâmetros inválidos são recusados", async () => {
+    await expect(anuncios(fetcher(resp("[]", 400)), "730", 0)).rejects.toBeInstanceOf(ErroSessao);
+    await expect(anuncios(fetcher(resp('{"success":false}')), "730", 0)).rejects.toBeInstanceOf(ErroFormato);
+    await expect(anuncios(fetcher(resp("{}")), "73x", 0)).rejects.toBeInstanceOf(ErroFormato);
+    await expect(anuncios(fetcher(resp("{}")), "730", -1)).rejects.toBeInstanceOf(ErroFormato);
+  });
+  it("assetid ou contexto fora do formato no texto de hovers é ignorado", async () => {
+    const d = JSON.parse(readFileSync("fixtures/real/mylistings-estrutura.json", "utf8"));
+    d.hovers = "CreateItemHoverFromContainer( g_rgAssets, 'mylisting_1_name', 730, '2', '<script>', 1 );";
+    const r = await anuncios(fetcher(resp(JSON.stringify(d))), "730", 0);
+    expect(r.itens).toEqual({});
+  });
+});
+
+describe("inventario: Steam responde 500 para páginas grandes", () => {
+  it("repete com página menor e acaba lendo o inventário", async () => {
+    const f = fetcher(resp("", 500), json("fixtures/sinteticas/inventario-p1.json"), json("fixtures/sinteticas/inventario-p2.json"));
+    const r = await inventario(f, "76561198000000000", "730", "2");
+    expect(r.length).toBeGreaterThan(0);
+    const urls = (f as unknown as { mock: { calls: string[][] } }).mock.calls.map((c) => c[0] as string);
+    expect(urls[0]).toContain("count=2000");
+    expect(urls[1]).toContain("count=500");
+    expect(urls[2]).toContain("count=500");
+  });
+  it("desiste (ErroFormato) se até a menor página dá 500", async () => {
+    const f = fetcher(resp("", 500), resp("", 500), resp("", 500));
+    await expect(inventario(f, "76561198000000000", "730", "2")).rejects.toBeInstanceOf(ErroFormato);
   });
 });

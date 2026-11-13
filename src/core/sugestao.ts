@@ -37,3 +37,22 @@ export function sugerir(modo: Modo, entrada: ContextoSugestao): Sugestao {
   }
   return { preco: mediana, base: baseMediana };
 }
+
+/** Trava do botão de um clique: preço fora de 0,5x a 2x do menor anúncio atual não é listado sem olhar. */
+export function foraDoMercado(precoComprador: number, menorAnuncio: number | null): boolean {
+  if (menorAnuncio === null || !Number.isSafeInteger(menorAnuncio) || menorAnuncio <= 0) return false;
+  return precoComprador < menorAnuncio * 0.5 || precoComprador > menorAnuncio * 2;
+}
+
+/** De onde veio o preço: histórico da própria Steam ou estimativa de terceiros (csgotrader). */
+export type FontePreco = "steam" | "estimado";
+
+/**
+ * Trava antes de listar: o preço tem de estar perto do menor anúncio atual da Steam.
+ * Sem menor anúncio para comparar, só o preço vindo da Steam passa; a estimativa de terceiros não.
+ */
+export function motivoParaNaoListar(precoComprador: number, menorAnuncio: number | null, fonte: FontePreco): string | null {
+  const temMenor = menorAnuncio !== null && Number.isSafeInteger(menorAnuncio) && menorAnuncio > 0;
+  if (!temMenor) return fonte === "estimado" ? "sem anúncio na Steam para conferir o preço estimado" : null;
+  return foraDoMercado(precoComprador, menorAnuncio) ? "fora do mercado" : null;
+}

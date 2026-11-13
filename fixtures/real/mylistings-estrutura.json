@@ -1,0 +1,58 @@
+{
+ "success": true,
+ "pagesize": 100,
+ "total_count": 3,
+ "start": 0,
+ "num_active_listings": 3,
+ "assets": {
+  "730": {
+   "2": {
+    "900000001": {
+     "currency": 0,
+     "appid": 730,
+     "contextid": "2",
+     "id": "900000001",
+     "classid": "1",
+     "instanceid": "0",
+     "amount": "1",
+     "status": 10,
+     "original_amount": "1",
+     "unowned_id": "900000001",
+     "unowned_contextid": "16"
+    },
+    "900000002": {
+     "currency": 0,
+     "appid": 730,
+     "contextid": "2",
+     "id": "900000002",
+     "classid": "1",
+     "instanceid": "0",
+     "amount": "1",
+     "status": 10,
+     "original_amount": "1",
+     "unowned_id": "900000002",
+     "unowned_contextid": "16"
+    }
+   }
+  },
+  "753": {
+   "6": {
+    "900000003": {
+     "currency": 0,
+     "appid": 753,
+     "contextid": "6",
+     "id": "900000003",
+     "classid": "1",
+     "instanceid": "0",
+     "amount": "1",
+     "status": 10,
+     "original_amount": "1",
+     "unowned_id": "900000003",
+     "unowned_contextid": "16"
+    }
+   }
+  }
+ },
+ "hovers": "\tCreateItemHoverFromContainer( g_rgAssets, 'mylisting_111_name', 730, '2', '900000001', 1 );\n\tCreateItemHoverFromContainer( g_rgAssets, 'mylisting_111_image', 730, '2', '900000001', 1 );\n\tCreateItemHoverFromContainer( g_rgAssets, 'mylisting_222_name', 730, '2', '900000002', 1 );\n\tCreateItemHoverFromContainer( g_rgAssets, 'mylisting_222_image', 730, '2', '900000002', 1 );\n\tCreateItemHoverFromContainer( g_rgAssets, 'mylisting_333_name', 753, '6', '900000003', 1 );\n\tCreateItemHoverFromContainer( g_rgAssets, 'mylisting_333_image', 753, '6', '900000003', 1 );\n",
+ "results_html": "<div class=\"market_listing_row market_recent_listing_row listing_111\" id=\"mylisting_111\">\n\t<img id=\"mylisting_111_image\" src=\"x\" class=\"market_listing_item_img\" alt=\"\" />\n\t<div class=\"market_listing_right_cell market_listing_my_price\">\n\t\t<span class=\"market_table_value\"><span class=\"market_listing_price\"><span style=\"display: inline-block\">\n\t\t\t<span title=\"This is the price the buyer pays.\">\n\t\t\t\tR$ 35,00\t\t\t\t\t</span><br>\n\t\t\t<span title=\"This is how much you will receive.\" style=\"color: #AFAFAF\">(R$ 0,01)</span>\n\t\t</span></span></span>\n\t</div>\n</div>\n<div class=\"market_listing_row market_recent_listing_row listing_222\" id=\"mylisting_222\">\n\t<img id=\"mylisting_222_image\" src=\"x\" class=\"market_listing_item_img\" alt=\"\" />\n\t<div class=\"market_listing_right_cell market_listing_my_price\">\n\t\t<span class=\"market_table_value\"><span class=\"market_listing_price\"><span style=\"display: inline-block\">\n\t\t\t<span title=\"This is the price the buyer pays.\">\n\t\t\t\tR$ 1.234,50\t\t\t\t\t</span><br>\n\t\t\t<span title=\"This is how much you will receive.\" style=\"color: #AFAFAF\">(R$ 0,01)</span>\n\t\t</span></span></span>\n\t</div>\n</div>\n<div class=\"market_listing_row market_recent_listing_row listing_333\" id=\"mylisting_333\">\n\t<img id=\"mylisting_333_image\" src=\"x\" class=\"market_listing_item_img\" alt=\"\" />\n\t<div class=\"market_listing_right_cell market_listing_my_price\">\n\t\t<span class=\"market_table_value\"><span class=\"market_listing_price\"><span style=\"display: inline-block\">\n\t\t\t<span title=\"This is the price the buyer pays.\">\n\t\t\t\tR$ 0,07\t\t\t\t\t</span><br>\n\t\t\t<span title=\"This is how much you will receive.\" style=\"color: #AFAFAF\">(R$ 0,01)</span>\n\t\t</span></span></span>\n\t</div>\n</div>"
+}

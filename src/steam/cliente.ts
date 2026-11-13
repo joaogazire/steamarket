@@ -24,6 +24,7 @@ export class ErroRede extends Error {
 
 const BASE = "https://steamcommunity.com";
 const MAX_PAGINAS_INVENTARIO = 50;
+const TAMANHOS_PAGINA = [2000, 500, 75];
 /** Teto de segurança do preço de venda (R$ 100.000,00): barra erro de unidade ou de moeda. */
 const MAX_LIQUIDO_CENTAVOS = 10_000_000;
 
@@ -54,7 +55,7 @@ const centavosOuNull = (v: unknown): number | null => {
   return Number.isSafeInteger(n) && n > 0 ? n : null;
 };
 
-async function chamar(f: typeof fetch, url: string, init?: RequestInit): Promise<Response> {
+async function chamar(f: typeof fetch, url: string, init?: RequestInit, permitirErro = false): Promise<Response> {
   let r: Response;
   try {
     r = await f(url, { credentials: "include", ...init });
@@ -64,7 +65,7 @@ async function chamar(f: typeof fetch, url: string, init?: RequestInit): Promise
   if (r.status === 429) throw new ErroLimite();
   if (r.status === 401 || r.status === 403) throw new ErroSessao();
   if (r.redirected && /\/login/.test(r.url)) throw new ErroSessao();
-  if (!r.ok) throw new ErroFormato(`status ${r.status}`);
+  if (!r.ok && !permitirErro) throw new ErroFormato(`status ${r.status} em ${new URL(url).pathname}`);
   return r;
 }
 
@@ -85,9 +86,23 @@ export async function inventario(f: typeof fetch, steamid: string, appid: string
   exigir(ehSteamid(steamid) && ehAppid(appid) && ehContext(contextid), "inventário");
   const saida: Ativo[] = [];
   let inicio = "";
+  let tamanho = 0; // índice em TAMANHOS_PAGINA; a Steam às vezes responde 500 a páginas grandes
   for (let pagina = 0; pagina < MAX_PAGINAS_INVENTARIO; pagina++) {
-    const url = `${BASE}/inventory/${steamid}/${appid}/${contextid}?l=english&count=2000${inicio ? `&start_assetid=${inicio}` : ""}`;
-    const d = await json(await chamar(f, url));
+    let resposta: Response;
+    for (;;) {
+      const url = `${BASE}/inventory/${steamid}/${appid}/${contextid}?l=english&count=${TAMANHOS_PAGINA[tamanho]}${inicio ? `&start_assetid=${inicio}` : ""}`;
+      try {
+        resposta = await chamar(f, url);
+        break;
+      } catch (e) {
+        if (e instanceof ErroFormato && /status 500/.test(e.message) && tamanho < TAMANHOS_PAGINA.length - 1) {
+          tamanho++;
+          continue;
+        }
+        throw e;
+      }
+    }
+    const d = await json(resposta);
     const assets = arr(d.assets);
     const descs = arr(d.descriptions);
     if (!assets || !descs) {
@@ -200,8 +215,63 @@ export async function vender(f: typeof fetch, ctx: ContextoVenda, ativo: Ativo, 
       "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
       Referer: `${BASE}/profiles/${ctx.steamid}/inventory`,
     },
-  });
+  }, true);
+  if (!r.ok) {
+    // A Steam explica a recusa no corpo (JSON com message) mesmo com status de erro.
+    let motivo = "";
+    try {
+      const v: unknown = await r.json();
+      const m = v && typeof v === "object" ? (v as Record<string, unknown>).message : undefined;
+      if (typeof m === "string") motivo = m.slice(0, 300);
+    } catch {
+      /* corpo ilegível */
+    }
+    if (motivo) return { ok: false, motivo: `${motivo} (status ${r.status})` };
+    throw new ErroFormato(`status ${r.status} em /market/sellitem/`);
+  }
   const d = await json(r);
   if (d.success === true || d.success === 1) return { ok: true, precisaConfirmar: d.requires_confirmation === 1 || d.requires_confirmation === true };
   return { ok: false, motivo: typeof d.message === "string" && d.message ? d.message : "recusada pela Steam" };
+}
+
+export interface PaginaAnuncios {
+  total: number;
+  /** id do quadrado na Steam (`appid_contextid_assetid`) → preço que o comprador paga (centavos), ou null se ilegível */
+  itens: Record<string, number | null>;
+}
+
+const MAX_HTML_ANUNCIOS = 5_000_000;
+
+/** Itens que o usuário já colocou à venda (a página lista até `count`; a próxima começa em `start`). */
+export async function anuncios(f: typeof fetch, appid: string, start: number): Promise<PaginaAnuncios> {
+  exigir(ehAppid(appid) && Number.isSafeInteger(start) && start >= 0 && start <= 100_000, "anuncios");
+  let r: Response;
+  try {
+    r = await chamar(f, `${BASE}/market/mylistings/?start=${start}&count=100`);
+  } catch (e) {
+    if (e instanceof ErroFormato && /status 400/.test(e.message)) throw new ErroSessao();
+    throw e;
+  }
+  const d = await json(r);
+  if (d.success !== true && d.success !== 1) throw new ErroFormato("mylistings sem success");
+  const total = Number(d.total_count);
+  if (!Number.isSafeInteger(total) || total < 0) throw new ErroFormato("mylistings sem total_count");
+  const hovers = typeof d.hovers === "string" ? d.hovers : "";
+  const html = typeof d.results_html === "string" && d.results_html.length <= MAX_HTML_ANUNCIOS ? d.results_html : "";
+  const itens: Record<string, number | null> = {};
+  const re = /mylisting_(\d{1,25})_name'\s*,\s*(\d{1,7})\s*,\s*'(\d{1,3})'\s*,\s*'(\d{1,15})'/g;
+  for (const m of hovers.matchAll(re)) {
+    if (m[2] !== appid) continue;
+    const ini = html.indexOf(`id="mylisting_${m[1]}"`);
+    let preco: number | null = null;
+    if (ini >= 0) {
+      // o próximo anúncio começa em `id="mylisting_<n>"`; os ids `_image`/`_name` ficam dentro do bloco atual
+      const resto = html.slice(ini + 10);
+      const prox = resto.search(/id="mylisting_\d+"/);
+      const bloco = prox >= 0 ? resto.slice(0, prox) : resto;
+      preco = textoParaCentavos(/This is the price the buyer pays\."\s*>\s*([^<]*)</.exec(bloco)?.[1]?.trim());
+    }
+    itens[`${appid}_${m[3]}_${m[4]}`] = preco;
+  }
+  return { total, itens };
 }

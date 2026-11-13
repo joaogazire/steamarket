@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sugerir } from "./sugestao.ts";
+import { foraDoMercado, motivoParaNaoListar, sugerir } from "./sugestao.ts";
 import type { Ponto } from "./tipos.ts";
 
 const hist: Ponto[] = [
@@ -40,5 +40,36 @@ describe("sugerir: preços inválidos da Steam", () => {
     expect(sugerir("rapido", c)).toEqual({ preco: null, base: "sem ordens de compra" });
     expect(sugerir("equilibrado", c)).toEqual({ preco: null, base: "sem histórico" });
     expect(sugerir("rapido", { ...c, maiorOrdemCompra: 2.5 }).preco).toBeNull();
+  });
+});
+
+describe("foraDoMercado (trava do botão de um clique)", () => {
+  it("dentro de 0,5x a 2x do menor anúncio passa", () => {
+    expect(foraDoMercado(100, 100)).toBe(false);
+    expect(foraDoMercado(50, 100)).toBe(false);
+    expect(foraDoMercado(200, 100)).toBe(false);
+  });
+  it("abaixo de 0,5x ou acima de 2x do menor anúncio é recusado", () => {
+    expect(foraDoMercado(49, 100)).toBe(true);
+    expect(foraDoMercado(201, 100)).toBe(true);
+  });
+  it("sem menor anúncio não há como comparar e passa", () => {
+    expect(foraDoMercado(100, null)).toBe(false);
+  });
+});
+
+describe("motivoParaNaoListar (preço de terceiros só lista se a Steam confirmar)", () => {
+  it("preço da Steam sem menor anúncio pode listar (item sem anúncios)", () => {
+    expect(motivoParaNaoListar(100, null, "steam")).toBeNull();
+  });
+  it("preço estimado (csgotrader) sem menor anúncio para conferir não lista", () => {
+    expect(motivoParaNaoListar(100, null, "estimado")).toMatch(/conferir/);
+  });
+  it("fora da faixa do menor anúncio não lista, qualquer que seja a fonte", () => {
+    expect(motivoParaNaoListar(40, 100, "steam")).toMatch(/fora do mercado/);
+    expect(motivoParaNaoListar(250, 100, "estimado")).toMatch(/fora do mercado/);
+  });
+  it("dentro da faixa lista", () => {
+    expect(motivoParaNaoListar(95, 100, "estimado")).toBeNull();
   });
 });

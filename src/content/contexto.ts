@@ -35,11 +35,21 @@ export function lerContexto(w: Record<string, unknown>): ContextoPagina | null {
   if (typeof sessionid !== "string" || !/^[A-Za-z0-9]{1,64}$/.test(sessionid)) return null;
   if (typeof moeda !== "number" || !Number.isInteger(moeda) || moeda <= 0) return null;
   if (typeof paisBruto !== "string" || !/^[A-Z]{2}$/.test(paisBruto)) return null;
-  return { steamid, sessionid, moeda, pais: paisBruto, proprio: w.g_bViewingOwnProfile === 1, regra: lerRegra(carteira) };
+  return { steamid, sessionid, moeda, pais: paisBruto, proprio: w.g_bViewingOwnProfile === 1 || w.g_bViewingOwnProfile === true, regra: lerRegra(carteira) };
 }
 
-/** O hash da página do inventário é `#appid_contextid`. */
+/** O hash da página do inventário é `#appid_contextid` ou só `#appid` (contexto 2; no Steam, 6). */
 export function lerAppDoHash(hash: string): { appid: string; contextid: string } | null {
-  const m = /^#(\d{1,7})_(\d{1,3})$/.exec(hash);
-  return m ? { appid: m[1] as string, contextid: m[2] as string } : null;
+  const m = /^#(\d{1,7})(?:_(\d{1,3}))?$/.exec(hash);
+  if (!m) return null;
+  const appid = m[1] as string;
+  return { appid, contextid: m[2] ?? (appid === "753" ? "6" : "2") };
+}
+
+/** App aberto no inventário: pelo hash da URL ou, sem ele, pela aba de jogo ativa da página. */
+export function lerAppDaPagina(doc: Document, hash: string): { appid: string; contextid: string } | null {
+  const doHash = lerAppDoHash(hash);
+  if (doHash) return doHash;
+  const aba = doc.querySelector("a.games_list_tab.active[href^='#']");
+  return aba ? lerAppDoHash(new URL(aba.getAttribute("href") ?? "", "https://x.invalid/").hash) : null;
 }

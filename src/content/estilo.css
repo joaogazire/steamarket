@@ -1,11 +1,25 @@
-#sv-painel { background: #1b2838; color: #c6d4df; padding: 12px 16px; margin: 0 0 12px; border-radius: 3px; font-size: 13px; }
-#sv-painel h2 { margin: 0 0 8px; font-size: 15px; color: #fff; }
-#sv-painel button { cursor: pointer; margin-left: 6px; }
-#sv-painel .sv-aviso { background: #5c4a00; color: #ffe082; padding: 4px 8px; margin-bottom: 8px; }
-#sv-painel .sv-grupo { display: flex; justify-content: space-between; gap: 12px; padding: 6px 4px; border-bottom: 1px solid #2a475e; cursor: pointer; }
-#sv-painel .sv-grupo:hover, #sv-painel .sv-grupo:focus-visible { background: #2a475e; outline: none; }
-#sv-painel .sv-contagem { color: #8fbc8f; font-variant-numeric: tabular-nums; }
-#sv-painel .sv-linha, #sv-painel .sv-sugestao, #sv-painel .sv-manual { padding: 3px 0; }
-#sv-painel .sv-plot { width: 100%; min-height: 220px; }
-#sv-painel .sv-janelas button[aria-pressed="true"] { font-weight: bold; }
-#sv-painel .sv-detalhe { margin: 8px 0 12px 12px; }
+:host { display: block; box-sizing: border-box; color: #c6d4df; padding: 4px 0; margin: 0 0 8px; font-size: 13px; text-align: left; }
+.sv-logo { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; color: #fff; font-size: 16px; font-weight: 600; letter-spacing: .3px; }
+.sv-logo img { width: 24px; height: 24px; }
+button { cursor: pointer; margin-left: 6px; }
+.sv-aviso { background: #5c4a00; color: #ffe082; padding: 3px 8px; margin-top: 4px; font-size: 12px; border-radius: 2px; }
+.sv-grupo { display: flex; justify-content: space-between; gap: 12px; padding: 6px 4px; border-bottom: 1px solid #2a475e; cursor: pointer; }
+.sv-grupo:hover, .sv-grupo:focus-visible { background: #2a475e; outline: none; }
+.sv-contagem { color: #8fbc8f; font-variant-numeric: tabular-nums; }
+.sv-linha, .sv-sugestao, .sv-manual { padding: 3px 0; }
+.sv-plot { width: 100%; min-height: 220px; }
+.sv-janelas button[aria-pressed="true"] { font-weight: bold; }
+.sv-detalhe { margin: 8px 0 12px 12px; }
+.sv-grupo { align-items: center; }
+.sv-grupo .sv-nome { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.sv-grupo .sv-sugestao { min-width: 88px; text-align: right; color: #66c0f4; font-variant-numeric: tabular-nums; padding: 0; }
+.sv-listar { flex: none; padding: 3px 10px; border: 0; border-radius: 2px; background: #5c7e10; color: #fff; cursor: pointer; }
+.sv-listar:disabled { background: #3a4a52; color: #8f98a0; cursor: default; }
+.sv-opcao { display: flex; align-items: center; gap: 8px; margin: 4px 0; cursor: pointer; user-select: none; }
+.sv-opcao input { appearance: none; margin: 0; width: 30px; height: 16px; border-radius: 8px; background: #3d4450; position: relative; cursor: pointer; flex: none; transition: background .15s; }
+.sv-opcao input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #c6d4df; transition: transform .15s; }
+.sv-opcao input:checked { background: #5c7e10; }
+.sv-opcao input:checked::after { transform: translateX(14px); background: #fff; }
+.sv-opcao input:focus-visible { outline: 2px solid #66c0f4; outline-offset: 2px; }
+.sv-status { margin-top: 4px; color: #8f98a0; font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .sv-opcao input, .sv-opcao input::after { transition: none; } }
