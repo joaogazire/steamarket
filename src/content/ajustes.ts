@@ -52,7 +52,7 @@ export function renderSeletorIdioma(el: HTMLElement, atual: Idioma, aoEscolher: 
 /** Perfil de venda (rápido / médio / paciente): radiogroup com setas do teclado. */
 export function renderSeletorPerfil(el: HTMLElement, atual: Perfil, aoEscolher: (p: Perfil) => void): void {
   const doc = el.ownerDocument;
-  const nomes: Record<Perfil, string> = { rapido: tx().perfilRapido, medio: tx().perfilMedio, paciente: tx().perfilPaciente };
+  const nomes: Record<Perfil, string> = { rapido: tx().perfilRapido, paciente: tx().perfilPaciente, maximo: tx().perfilMaximo };
   const grupo = doc.createElement("div");
   grupo.className = "sv-idiomas sv-perfis";
   grupo.setAttribute("role", "radiogroup");
@@ -101,7 +101,7 @@ export interface MenuAjustes {
 export function montarMenuAjustes(
   botao: HTMLElement,
   raiz: HTMLElement | ShadowRoot,
-  op: { atual: () => Idioma; aoEscolher: (i: Idioma) => void; perfil?: () => Perfil; aoEscolherPerfil?: (p: Perfil) => void; rodape?: string },
+  op: { atual: () => Idioma; aoEscolher: (i: Idioma) => void; perfil?: () => Perfil; aoEscolherPerfil?: (p: Perfil) => void; semTrava?: () => boolean; aoAlternarTrava?: (semTrava: boolean) => void; rodape?: string },
 ): MenuAjustes {
   const doc = botao.ownerDocument;
   const menu = doc.createElement("div");
@@ -138,6 +138,25 @@ export function montarMenuAjustes(
       renderSeletorPerfil(seletorPerfil, op.perfil(), aoPerfil);
       menu.append(tituloPerfil, seletorPerfil);
     }
+    if (op.semTrava && op.aoAlternarTrava) {
+      const { semTrava, aoAlternarTrava } = op;
+      const sw = doc.createElement("button");
+      sw.type = "button";
+      sw.className = "sv-trava";
+      sw.setAttribute("role", "switch");
+      sw.title = tx().travaDica;
+      const marcar = (v: boolean) => {
+        sw.setAttribute("aria-checked", String(v));
+        sw.textContent = `${v ? "☑" : "☐"} ${tx().travaDesligar}`;
+      };
+      marcar(semTrava());
+      sw.addEventListener("click", () => {
+        const novo = sw.getAttribute("aria-checked") !== "true";
+        marcar(novo);
+        aoAlternarTrava(novo);
+      });
+      menu.append(sw);
+    }
     if (op.rodape) {
       const rodape = doc.createElement("div");
       rodape.className = "sv-menu-rodape";
@@ -157,7 +176,15 @@ export function montarMenuAjustes(
     botao.setAttribute("aria-expanded", "false");
     if (devolverFoco) botao.focus();
   };
-  botao.addEventListener("click", () => (menu.hidden ? abrir() : fechar()));
+  // Cada clique dá uma volta completa no logo; tirar e repor a classe reinicia o giro mesmo no meio de outro.
+  botao.addEventListener("animationend", () => botao.classList.remove("sv-girando"));
+  botao.addEventListener("click", () => {
+    botao.classList.remove("sv-girando");
+    void botao.offsetWidth;
+    botao.classList.add("sv-girando");
+    if (menu.hidden) abrir();
+    else fechar();
+  });
   menu.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       e.stopPropagation();

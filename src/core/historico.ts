@@ -64,3 +64,21 @@ export function medianaUltimas(pontos: Ponto[], n = 50): { preco: number | null;
   }
   return { preco: null, amostra };
 }
+
+/**
+ * Média (ponderada pelo volume) das últimas `n` vendas dentro de `janelaMs` (padrão: 1 dia, 5 vendas).
+ * Com menos de `n` vendas na janela usa as que houver; sem nenhuma, null.
+ */
+export function mediaUltimasVendas(pontos: Ponto[], agora: number, n = 5, janelaMs = 86_400_000): { preco: number; amostra: number } | null {
+  const recentes = pontos.filter((p) => p.volume > 0 && p.t > agora - janelaMs && p.t <= agora + 3_600_000).sort((a, b) => b.t - a.t);
+  let falta = n;
+  let soma = 0;
+  for (const p of recentes) {
+    if (falta <= 0) break;
+    const peso = Math.min(p.volume, falta);
+    soma += p.preco * peso;
+    falta -= peso;
+  }
+  const amostra = n - falta;
+  return amostra === 0 ? null : { preco: Math.round(soma / amostra), amostra };
+}

@@ -76,4 +76,10 @@ describe("motivoParaNaoListar (preço de terceiros só lista se a Steam confirma
   it("dentro da faixa lista", () => {
     expect(motivoParaNaoListar(95, 100, "estimado")).toBeNull();
   });
+  it("com a trava desligada (opção do usuário) lista qualquer preço, em qualquer fonte", () => {
+    expect(motivoParaNaoListar(38, 18, "ajustado", false)).toBeNull();
+    expect(motivoParaNaoListar(250, 100, "estimado", false)).toBeNull();
+    expect(motivoParaNaoListar(100, null, "estimado", false)).toBeNull();
+    expect(motivoParaNaoListar(38, 18, "ajustado", true)).toMatch(/fora do mercado/);
+  });
 });

@@ -69,8 +69,9 @@ async function principal(): Promise<void> {
   let apenasBonsSalvo = false;
   let baratosSalvo = false;
   let perfil: Perfil = lerPerfil(undefined);
+  let semTrava = false;
   try {
-    const salvo = await browser.storage.local.get(["ordem", "agrupar", "ocultarNaoVendaveis", "apenasBons", "ocultarBaratos", "idioma", "perfil"]);
+    const salvo = await browser.storage.local.get(["ordem", "agrupar", "ocultarNaoVendaveis", "apenasBons", "ocultarBaratos", "idioma", "perfil", "semTrava"]);
     definirIdioma(lerIdioma(salvo.idioma, browser.i18n.getUILanguage()));
     ordemSalva = lerOrdem(salvo.ordem);
     agruparSalvo = salvo.agrupar === true;
@@ -78,6 +79,7 @@ async function principal(): Promise<void> {
     apenasBonsSalvo = salvo.apenasBons === true;
     baratosSalvo = salvo.ocultarBaratos === true;
     perfil = lerPerfil(salvo.perfil);
+    semTrava = salvo.semTrava === true;
   } catch {
     /* sem storage: começa no padrão */
   }
@@ -122,6 +124,11 @@ async function principal(): Promise<void> {
       perfil = p;
       browser.storage.local.set({ perfil: p }).catch(() => undefined);
       repreciar();
+    },
+    semTrava: () => semTrava,
+    aoAlternarTrava: (v) => {
+      semTrava = v;
+      browser.storage.local.set({ semTrava: v }).catch(() => undefined);
     },
     rodape: typeof __BUILD__ === "string" ? `steamarket · build ${__BUILD__}` : "steamarket",
   });
@@ -488,7 +495,8 @@ async function principal(): Promise<void> {
     };
     const q = porQuadrado.get(id);
     const preco = q?.preco ?? null;
-    if (!q || preco === null || emVenda.has(id) || listados.has(id)) return { ok: false, motivo: tx().itemIndisponivel };
+    console.info("[steamarket] vender", id, { preco, fonte: q?.fonte, emVenda: emVenda.has(id), listado: listados.has(id), vendendo });
+    if (!q || preco === null || emVenda.has(id) || listados.has(id)) return falhar(tx().itemIndisponivel, 8000);
     if (vendendo) return falhar(tx().vendaEmAndamento, 6000);
     if (ctx!.moeda !== MOEDA_SUPORTADA) return falhar(tx().soBRL);
     vendendo = true;
@@ -500,7 +508,8 @@ async function principal(): Promise<void> {
       const r = await enviar({ tipo: "preco", appid: String(q.grupo.appid), nome: q.grupo.nome, moeda: ctx!.moeda, pais: ctx!.pais, grupoId: painel!.jogoAtual() ?? "x" });
       if (!r.ok) return falhar(tx().naoConferiuMercado(mensagemDe(r)), 12000, r.erro === "sessao" || r.erro === "limite");
       const menor = (r.dados as DadosPreco).visao.menorAnuncio;
-      const motivo = motivoParaNaoListar(preco, menor, q.fonte);
+      console.info("[steamarket] menor anúncio", menor, "trava", !semTrava);
+      const motivo = motivoParaNaoListar(preco, menor, q.fonte, !semTrava);
       if (motivo) {
         const ref = menor !== null ? ` (${tx().menorAnuncio(formatar(menor))})` : "";
         return falhar(tx().naoListei(q.grupo.nome, formatar(preco), `${motivo}${ref}`));
@@ -514,6 +523,7 @@ async function principal(): Promise<void> {
       const res = await vender(fetchVenda, { sessionid: ctx!.sessionid, steamid: ctx!.steamid }, q.ativo, liquido).finally(
         () => (ultimaVenda = Date.now()),
       );
+      console.info("[steamarket] resposta da venda", res);
       if (!res.ok) return falhar(tx().recusado(res.motivo), 15000);
       q.preco = null;
       precosGrade.delete(id);
@@ -525,6 +535,7 @@ async function principal(): Promise<void> {
     } catch (e) {
       if (e instanceof ErroSessao) return falhar(tx().erroSessao, 12000, true);
       if (e instanceof ErroLimite) return falhar(tx().erroLimite, 12000, true);
+      console.error("[steamarket] erro ao vender", e);
       return falhar(e instanceof Error ? e.message : tx().vendaRecusada);
     } finally {
       vendendo = false;
@@ -591,6 +602,7 @@ async function principal(): Promise<void> {
     if (!e.isTrusted) return;
     setTimeout(() => void refinarVisiveis(), 400);
     const alvo = acaoDoBotao(e.target);
+    if (alvo) console.info("[steamarket] clique", alvo.acao, alvo.id);
     if (!alvo) return;
     e.preventDefault();
     e.stopPropagation();

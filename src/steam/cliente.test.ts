@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { ErroLimite } from "../background/fila.ts";
 import {
-  ErroFormato, ErroRede, ErroSessao, anuncios, historico, inventario, itemNameId, ordens, textoParaCentavos, vender, visaoGeral,
+  ErroFormato, ErroRede, ErroSessao, anuncios, historico, inventario, itemNameId, ordens, removerAnuncio, textoParaCentavos, vender, visaoGeral,
 } from "./cliente.ts";
 
 const ler = (c: string) => readFileSync(c, "utf8");
@@ -186,5 +186,27 @@ describe("inventario: Steam responde 500 para páginas grandes", () => {
   it("desiste (ErroFormato) se até a menor página dá 500", async () => {
     const f = fetcher(resp("", 500), resp("", 500), resp("", 500));
     await expect(inventario(f, "76561198000000000", "730", "2")).rejects.toBeInstanceOf(ErroFormato);
+  });
+});
+
+describe("removerAnuncio", () => {
+  const ctx = { sessionid: "abc123", steamid: "76561198000000000" };
+  it("POST em /market/removelisting/<id> com a sessão no corpo", async () => {
+    const f = fetcher(resp([]));
+    await removerAnuncio(f, ctx, "7654321");
+    const [url, init] = f.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://steamcommunity.com/market/removelisting/7654321");
+    expect(init.method).toBe("POST");
+    expect(init.credentials).toBe("include");
+    expect(Object.fromEntries(new URLSearchParams(String(init.body)))).toEqual({ sessionid: "abc123" });
+  });
+  it("id que não é só dígitos não envia nada", async () => {
+    const f = fetcher();
+    await expect(removerAnuncio(f, ctx, "12/../x")).rejects.toThrow();
+    expect(f).not.toHaveBeenCalled();
+  });
+  it("401 vira ErroSessao; erro HTTP vira ErroFormato", async () => {
+    await expect(removerAnuncio(fetcher(resp("", 401)), ctx, "1")).rejects.toBeInstanceOf(ErroSessao);
+    await expect(removerAnuncio(fetcher(resp("", 500)), ctx, "1")).rejects.toThrow("status 500");
   });
 });

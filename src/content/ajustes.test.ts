@@ -55,6 +55,15 @@ describe("montarMenuAjustes (clique no logo)", () => {
     expect(botao.getAttribute("aria-expanded")).toBe("true");
     expect(el().textContent).toContain("Idioma");
   });
+  it("cada clique no logo dá uma volta completa (reinicia o giro e limpa no fim)", () => {
+    const { botao } = montar();
+    botao.click();
+    expect(botao.classList.contains("sv-girando")).toBe(true);
+    botao.dispatchEvent(new Event("animationend"));
+    expect(botao.classList.contains("sv-girando")).toBe(false);
+    botao.click(); // fechar também gira
+    expect(botao.classList.contains("sv-girando")).toBe(true);
+  });
   it("escolher idioma avisa e o menu continua aberto, já no idioma novo", () => {
     const { botao, el, aoEscolher } = montar();
     botao.click();
@@ -67,12 +76,30 @@ describe("montarMenuAjustes (clique no logo)", () => {
     botao.click();
     expect(el().textContent).toContain("Perfil de venda");
     const perfis = () => [...el().querySelectorAll<HTMLButtonElement>(".sv-perfis [role=radio]")];
-    expect(perfis().map((b) => b.textContent)).toEqual(["Rápido", "Médio", "Paciente"]);
-    expect(perfis().map((b) => b.getAttribute("aria-checked"))).toEqual(["false", "false", "true"]);
+    expect(perfis().map((b) => b.textContent)).toEqual(["Rápido", "Paciente", "Máximo"]);
+    expect(perfis().map((b) => b.getAttribute("aria-checked"))).toEqual(["false", "true", "false"]);
     perfis()[0]!.click();
     expect(aoEscolherPerfil).toHaveBeenCalledWith("rapido");
     expect(perfis().map((b) => b.getAttribute("aria-checked"))).toEqual(["true", "false", "false"]);
     expect(el().hidden).toBe(false);
+  });
+  it("trava de preço: interruptor no menu, desligado por padrão (trava ativa); clicar avisa e marca", () => {
+    const raiz = document.createElement("div");
+    const botao = document.createElement("button");
+    raiz.append(botao);
+    document.body.append(raiz);
+    const aoAlternarTrava = vi.fn();
+    montarMenuAjustes(botao, raiz, { atual: () => "pt", aoEscolher: vi.fn(), perfil: () => "paciente", aoEscolherPerfil: vi.fn(), semTrava: () => false, aoAlternarTrava });
+    botao.click();
+    const sw = raiz.querySelector<HTMLButtonElement>(".sv-trava[role=switch]")!;
+    expect(sw.getAttribute("aria-checked")).toBe("false");
+    expect(raiz.querySelector(".sv-menu")!.textContent).toContain("trava de preço");
+    sw.click();
+    expect(aoAlternarTrava).toHaveBeenCalledWith(true);
+    expect(sw.getAttribute("aria-checked")).toBe("true");
+    sw.click();
+    expect(aoAlternarTrava).toHaveBeenLastCalledWith(false);
+    expect((raiz.querySelector(".sv-menu") as HTMLElement).hidden).toBe(false);
   });
   it("sem as opções de perfil, o menu só tem o idioma", () => {
     const raiz = document.createElement("div");

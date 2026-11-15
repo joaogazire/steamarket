@@ -52,7 +52,8 @@ export type FontePreco = "steam" | "estimado" | "ajustado";
  * Trava antes de listar: o preço tem de estar perto do menor anúncio atual da Steam.
  * Sem menor anúncio para comparar, só o preço da mediana da Steam passa; a estimativa de terceiros e o preço ajustado acima da mediana não.
  */
-export function motivoParaNaoListar(precoComprador: number, menorAnuncio: number | null, fonte: FontePreco): string | null {
+export function motivoParaNaoListar(precoComprador: number, menorAnuncio: number | null, fonte: FontePreco, travar = true): string | null {
+  if (!travar) return null; // o usuário desligou a trava no menu do logo
   const temMenor = menorAnuncio !== null && Number.isSafeInteger(menorAnuncio) && menorAnuncio > 0;
   if (!temMenor) return fonte === "steam" ? null : tx().semAnuncioParaConferir;
   return foraDoMercado(precoComprador, menorAnuncio) ? tx().foraDoMercado : null;

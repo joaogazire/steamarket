@@ -26,5 +26,4 @@ Em BRL cada taxa tem piso de R$ 0,06 (wallet_market_minimum = 6): R$ 0,18 rende 
 - AV-14: item com preço sugerido < R$ 0,50 (BRL) "não compensa vender agora": preço em cinza e dica "taxa alta, melhor esperar subir".
 - AV-15: item que não compensa nunca é "bom negócio" (borda dourada).
 - AV-16: filtro (ícone) "ocultar itens que não compensam": manda esses itens para o fim da grade (desligado por padrão).
-- AV-17: perfil paciente: item barato (mediana < R$ 0,50) mira mais alto (paciente: percentil 90, teto 1,5× a mediana) para fugir do piso de taxa.
-- Referência: o ideal seria listar só acima de R$ 1,20 (taxa mínima); o limite de R$ 0,50 é o ponto de partida e fica em `src/core/compensa.ts`.
+- AV-17 (/market, colunas e total): ordem na tela PRICE, últimas vendas, %, perfil. "Últimas vendas" = média das últimas 5 vendas das últimas 24 h (com a quantidade). "%" = (últimas vendas − preço anunciado) / preço anunciado (verde ≥ +3%, âmbar ≤ −3%). Ao lado de "My sell listings" fica só o chip "Anunciado R$ X · recebo R$ Y" (soma de TODOS os anúncios, lendo as páginas de /market/mylistings). O total com preços sugeridos foi removido (14/11).

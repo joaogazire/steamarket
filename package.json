@@ -1,6 +1,6 @@
 {
   "name": "steamarket",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "description": "Extensão Firefox: preços, totais e venda (um a um ou em lote) no seu inventário da Steam",

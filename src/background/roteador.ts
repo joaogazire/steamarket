@@ -46,8 +46,8 @@ const CINCO_MIN = 300_000;
 const DEZ_MIN = 600_000;
 const MAX_PAGINAS_ANUNCIOS = 10;
 const SEIS_HORAS = 6 * HORA;
-/** Histórico de preços: o preço sugerido e a análise de venda dependem de dados do dia. */
-const DOZE_HORAS = 12 * HORA;
+/** Histórico de preços: a coluna ÚLTIMAS (vendas das últimas 24 h) fica errada com dado de 12 h atrás. */
+const VALIDADE_HISTORICO = HORA;
 /** quanto a tabela fica só na memória antes de reler o IndexedDB (que respeita as 6 h) */
 const MEMORIA_TABELA = HORA;
 const MAX_NOMES = 5000;
@@ -174,7 +174,7 @@ export function criarRoteador({ fila, cache, steam, precosMassa, agora = Date.no
           }
           return { ok: true, dados: itens };
         }
-        const obterHistorico = () => via(`hist:${m.appid}:${m.nome}`, DOZE_HORAS, m.grupoId, () => steam.historico(m.appid, m.nome));
+        const obterHistorico = () => via(`hist:${m.appid}:${m.nome}`, VALIDADE_HISTORICO, m.grupoId, () => steam.historico(m.appid, m.nome));
         if (m.tipo === "historico") return { ok: true, dados: await obterHistorico() };
         const visao = await via(`vis:${m.appid}:${m.moeda}:${m.nome}`, CINCO_MIN, m.grupoId, () => steam.visaoGeral(m.appid, m.nome, m.moeda));
         const historico = await obterHistorico();

@@ -234,6 +234,18 @@ export async function vender(f: typeof fetch, ctx: ContextoVenda, ativo: Ativo, 
   return { ok: false, motivo: typeof d.message === "string" && d.message ? d.message : "recusada pela Steam" };
 }
 
+/** Retira um anúncio ativo (o item volta ao inventário). `listingId` é o número de `mylisting_<n>` da linha. */
+export async function removerAnuncio(f: typeof fetch, ctx: ContextoVenda, listingId: string): Promise<void> {
+  exigir(/^\d{1,25}$/.test(listingId) && /^[A-Za-z0-9]{1,64}$/.test(ctx.sessionid), "removerAnuncio");
+  await chamar(f, `${BASE}/market/removelisting/${listingId}`, {
+    method: "POST",
+    redirect: "error",
+    signal: AbortSignal.timeout(30_000),
+    body: new URLSearchParams({ sessionid: ctx.sessionid }).toString(),
+    headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+  });
+}
+
 export interface PaginaAnuncios {
   total: number;
   /** id do quadrado na Steam (`appid_contextid_assetid`) → preço que o comprador paga (centavos), ou null se ilegível */

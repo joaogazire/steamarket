@@ -23,6 +23,7 @@ const base = {
 const entradas = [
   { entryPoints: ["src/background/index.ts"], outfile: "dist/background.js" },
   { entryPoints: ["src/content/index.ts"], outfile: "dist/content.js" },
+  { entryPoints: ["src/content/mercado-index.ts"], outfile: "dist/mercado.js" },
   { entryPoints: ["src/ajustes/index.ts"], outfile: "dist/ajustes.js" },
 ];
 

@@ -66,18 +66,15 @@ describe("perfis de venda", () => {
     expect(precoPaciente(h, AGORA)).toEqual(precoPaciente(h, AGORA, "paciente"));
     expect(precoPaciente(h, AGORA)!.q).toBe(0.8);
   });
-  it("rápido = mediana; médio < paciente em preço; a ordem é rápido ≤ médio ≤ paciente", () => {
-    const [r, m, p] = (["rapido", "medio", "paciente"] as const).map((x) => precoPaciente(h, AGORA, x)!);
+  it("rápido = mediana; a ordem é rápido ≤ paciente", () => {
+    const [r, p] = (["rapido", "paciente"] as const).map((x) => precoPaciente(h, AGORA, x)!);
     expect(r!.q).toBe(0.5);
-    expect(m!.q).toBe(0.7);
-    expect(r!.preco).toBeLessThanOrEqual(m!.preco);
-    expect(m!.preco).toBeLessThanOrEqual(p!.preco);
+    expect(r!.preco).toBeLessThanOrEqual(p!.preco);
     expect(p!.preco).toBeGreaterThan(r!.preco);
   });
-  it("o teto de cada perfil vale (rápido 1,0×, médio 1,2×, paciente 1,3× a mediana)", () => {
+  it("o teto de cada perfil vale (rápido 1,0×, paciente 1,3× a mediana)", () => {
     const mediana = precoPaciente(h, AGORA, "rapido")!.preco;
     expect(precoPaciente(h, AGORA, "paciente")!.preco).toBeLessThanOrEqual(Math.round(mediana * 1.3));
-    expect(precoPaciente(h, AGORA, "medio")!.preco).toBeLessThanOrEqual(Math.round(mediana * 1.2));
   });
   it("item em queda continua usando a mediana em qualquer perfil", () => {
     const queda = horaria(100, (x) => [3 + (x / 2400) * 3 + ((x * 7) % 5) * 0.01, 1.5]);
@@ -85,7 +82,8 @@ describe("perfis de venda", () => {
   });
   it("lerPerfil: valor salvo inválido volta ao padrão paciente", () => {
     expect(lerPerfil("rapido")).toBe("rapido");
-    expect(lerPerfil("medio")).toBe("medio");
+    expect(lerPerfil("maximo")).toBe("maximo");
+    expect(lerPerfil("medio")).toBe("paciente"); // perfil removido: valor antigo salvo volta ao padrão
     expect(lerPerfil("x")).toBe("paciente");
     expect(lerPerfil(undefined)).toBe("paciente");
   });
@@ -93,9 +91,8 @@ describe("perfis de venda", () => {
 
 describe("item barato (taxa alta): mira mais alto para fugir do piso de taxa", () => {
   const barato = horaria(20, (h) => [0.3 + ((h * 7) % 11) * 0.02, 1.5]); // 0,30 a 0,50, ~35 vendas/dia
-  it("paciente usa percentil 90; médio e rápido seguem as regras normais", () => {
+  it("paciente usa percentil 90; rápido segue as regras normais", () => {
     expect(precoPaciente(barato, AGORA, "paciente")!.q).toBe(0.9);
-    expect(precoPaciente(barato, AGORA, "medio")!.q).toBe(0.7);
     expect(precoPaciente(barato, AGORA, "rapido")!.q).toBe(0.5);
   });
   it("sobe acima do que o paciente pediria sem o reforço, dentro do teto de 1,5× a mediana", () => {
@@ -106,5 +103,46 @@ describe("item barato (taxa alta): mira mais alto para fugir do piso de taxa", (
   });
   it("item caro (acima do limite) continua com percentil 80", () => {
     expect(precoPaciente(horaria(20, (h) => [2 + ((h * 7) % 11) * 0.05, 1.5]), AGORA, "paciente")!.q).toBe(0.8);
+  });
+});
+
+describe("perfil máximo (6 meses)", () => {
+  /** 180 dias, 1 ponto por dia, ~20 vendas/dia; preço varia de 1,00 a 2,00 (dia % 11) */
+  const DIA = 24 * HORA;
+  const seis = (f: (d: number) => number, vol = 20): Ponto[] =>
+    Array.from({ length: 180 }, (_, i) => {
+      const d = 179 - i;
+      return { t: AGORA - d * DIA, preco: Math.round(f(d) * 100), volume: vol };
+    });
+  const varia = (d: number) => 1 + ((d * 7) % 11) / 10;
+
+  it("mira o topo do que o item já vendeu em 6 meses: acima do paciente e do rápido", () => {
+    const h = seis((d) => varia(d) + (d > 30 ? 0.4 : 0)); // últimos 30 dias mais baratos que os meses anteriores
+    const m = precoPaciente(h, AGORA, "maximo")!;
+    expect(m.preco).toBeGreaterThan(precoPaciente(h, AGORA, "paciente")!.preco);
+    expect(m.q).toBe(0.9);
+    expect(m.base).toContain("6 meses");
+  });
+  it("nunca passa de 1,5× a mediana dos 6 meses", () => {
+    const h = seis(varia);
+    const mediana = medianaUltimas(h, 3600).preco!;
+    expect(precoPaciente(h, AGORA, "maximo")!.preco).toBeLessThanOrEqual(Math.round(mediana * 1.5));
+  });
+  it("um pico de 1 venda a R$ 50 não puxa o preço", () => {
+    const h = seis(varia);
+    const comPico = h.map((p, i) => (i === 90 ? { ...p, preco: 5000, volume: 1 } : p));
+    expect(precoPaciente(comPico, AGORA, "maximo")!.preco).toBe(precoPaciente(h, AGORA, "maximo")!.preco);
+  });
+  it("só conta vendas dos últimos 180 dias", () => {
+    const h = [{ t: AGORA - 200 * DIA, preco: 90000, volume: 500 }, ...seis(varia)];
+    expect(precoPaciente(h, AGORA, "maximo")!.preco).toBe(precoPaciente(seis(varia), AGORA, "maximo")!.preco);
+  });
+  it("histórico curto (menos de 10 vendas em 6 meses): cai para o resultado do paciente", () => {
+    const h = seis(varia, 0).map((p, i) => (i === 0 ? { ...p, volume: 3 } : p));
+    expect(precoPaciente(h, AGORA, "maximo")).toEqual(precoPaciente(h, AGORA, "paciente"));
+  });
+  it("nunca devolve menos que o paciente", () => {
+    const h = seis((d) => 3 + d * 0.01); // caiu de ~4,8 para 3
+    expect(precoPaciente(h, AGORA, "maximo")!.preco).toBeGreaterThanOrEqual(precoPaciente(h, AGORA, "paciente")!.preco);
   });
 });
