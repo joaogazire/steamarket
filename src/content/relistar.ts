@@ -27,6 +27,10 @@ export interface PedidoRelistar {
   /** preço sugerido que o comprador paga (centavos) */
   preco: number;
   fonte: FontePreco;
+  /** preço atual deste anúncio (o comprador paga, centavos): se for o menor anúncio da Steam, ele não serve de referência */
+  meuPreco?: number | null;
+  /** preço do perfil rápido (≈ mediana das vendas recentes da Steam, centavos): referência da trava quando o menor anúncio é o próprio */
+  mediana?: number | null;
 }
 
 export type ResultadoRelistar = { ok: true; precisaConfirmar: boolean } | { ok: false; motivo: string; removido?: boolean };
@@ -42,7 +46,11 @@ const msg = (e: unknown): string => (e instanceof Error ? e.message : String(e))
 export async function relistarAnuncio(d: DepsRelistar, p: PedidoRelistar): Promise<ResultadoRelistar> {
   let liquido: number;
   try {
-    const menor = await d.menorAnuncio();
+    let menor = await d.menorAnuncio();
+    // o menor anúncio pode ser este mesmo (anunciado barato demais): aí compara com a mediana das vendas da Steam
+    // (sem mediana, mantém o menor anúncio: nunca fica sem referência). Empate com outro vendedor no mesmo preço
+    // também cai aqui; a mediana segue sendo uma referência real do mercado.
+    if (menor !== null && p.meuPreco != null && menor === p.meuPreco && p.mediana != null) menor = p.mediana;
     const motivo = motivoParaNaoListar(p.preco, menor, p.fonte, d.travar);
     if (motivo) return { ok: false, motivo: tx().relistarFalha(`${motivo}${menor !== null ? ` (${tx().menorAnuncio(reais(menor))})` : ""}`) };
     liquido = liquidoDe(p.preco, d.regra);

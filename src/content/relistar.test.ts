@@ -41,6 +41,30 @@ describe("relistarAnuncio", () => {
     expect(r.ok).toBe(false);
     expect(d.remover).not.toHaveBeenCalled();
   });
+  it("menor anúncio = o próprio anúncio: a trava compara com a mediana da Steam (subir o preço passa)", async () => {
+    const d = deps({ menorAnuncio: vi.fn(async () => 20) }); // 20 é o próprio anúncio, barato demais
+    const r = await relistarAnuncio(d, { ...pedido, meuPreco: 20, mediana: 100 });
+    expect(r.ok).toBe(true);
+    expect(d.remover).toHaveBeenCalled();
+  });
+  it("menor anúncio = o próprio anúncio e preço longe da mediana: barra antes de remover", async () => {
+    const d = deps({ menorAnuncio: vi.fn(async () => 20) });
+    const r = await relistarAnuncio(d, { ...pedido, meuPreco: 20, mediana: 30 }); // 110 > 2× 30
+    expect(r.ok).toBe(false);
+    expect(d.remover).not.toHaveBeenCalled();
+  });
+  it("menor anúncio = o próprio anúncio sem mediana: mantém o menor anúncio como referência", async () => {
+    const d = deps({ menorAnuncio: vi.fn(async () => 20) });
+    const r = await relistarAnuncio(d, { ...pedido, meuPreco: 20, mediana: null }); // 110 > 2× 20
+    expect(r.ok).toBe(false);
+    expect(d.remover).not.toHaveBeenCalled();
+  });
+  it("menor anúncio de outra pessoa (diferente do próprio) continua valendo", async () => {
+    const d = deps({ menorAnuncio: vi.fn(async () => 20) });
+    const r = await relistarAnuncio(d, { ...pedido, meuPreco: 25, mediana: 100 });
+    expect(r.ok).toBe(false);
+    expect(d.remover).not.toHaveBeenCalled();
+  });
   it("trava desligada pelo usuário lista mesmo assim", async () => {
     const d = deps({ menorAnuncio: vi.fn(async () => 20), travar: false });
     expect((await relistarAnuncio(d, pedido)).ok).toBe(true);

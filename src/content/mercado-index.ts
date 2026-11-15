@@ -111,7 +111,7 @@ async function principal(): Promise<void> {
             return null;
           },
         },
-        { listingId, appid: a.appid, nome: a.nome, preco, fonte: q > 0.5 ? "ajustado" : "steam" },
+        { listingId, appid: a.appid, nome: a.nome, preco, fonte: q > 0.5 ? "ajustado" : "steam", meuPreco: a.preco, mediana: h ? (precoPaciente(h, Date.now(), "rapido")?.preco ?? null) : null },
       );
       const b = a.row.querySelector<HTMLElement>(".sv-relistar");
       if (r.ok) {
